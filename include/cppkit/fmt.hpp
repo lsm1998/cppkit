@@ -82,7 +82,7 @@ void format_impl(std::ostringstream &oss, const char *fmt, const T &arg,
 }
 
 template <FormatString Fmt, typename... Args>
-void safe_fmt_print_impl(const Args &...args) {
+std::string safe_fmt_sprintf_impl(const Args &...args) {
   constexpr size_t expected = Fmt.get_placeholder_count();
   constexpr size_t actual = sizeof...(Args);
 
@@ -91,10 +91,17 @@ void safe_fmt_print_impl(const Args &...args) {
 
   std::ostringstream oss;
   format_impl(oss, Fmt.str, args...);
-  std::cout << oss.str() << std::endl;
+  return oss.str();
+}
+
+template <FormatString Fmt, typename... Args>
+void safe_fmt_print_impl(const Args &...args) {
+  std::cout << safe_fmt_sprintf_impl<Fmt>(args...) << std::endl;
 }
 } // namespace inner
 
 #define print(fmt_str, ...) inner::safe_fmt_print_impl<fmt_str>(__VA_ARGS__)
+
+#define sprinf(fmt_str, ...) inner::safe_fmt_sprintf_impl<fmt_str>(__VA_ARGS__)
 
 } // namespace cppkit

@@ -12,5 +12,8 @@ int main() {
 
   // 转义
   cppkit::print("转义效果{{}");
+
+  auto str = cppkit::sprinf("hello {}", "bob");
+  std::cout << str << std::endl;
   return 0;
 }
