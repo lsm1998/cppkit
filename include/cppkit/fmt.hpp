@@ -2,12 +2,14 @@
 
 #include <iostream>
 #include <sstream>
+#include <tuple>
 
 namespace cppkit {
 
+namespace inner {
 constexpr size_t count_placeholders(const char *fmt, size_t len) {
   size_t count = 0;
-  for (size_t i = 0; i < len - 1; ++i) {
+  for (size_t i = 0; i + 1 < len; ++i) {
     if (fmt[i] == '{' && fmt[i + 1] == '{') {
       // 转义 "{{" -> 输出 '{'，跳过
       ++i;
@@ -31,9 +33,8 @@ template <size_t N> struct FormatString {
   static constexpr size_t length = N - 1;
 
   constexpr FormatString(const char (&s)[N]) {
-    for (size_t i = 0; i < N; ++i) {
+    for (size_t i = 0; i < N; ++i)
       str[i] = s[i];
-    }
   }
 
   constexpr size_t get_placeholder_count() const {
@@ -41,11 +42,20 @@ template <size_t N> struct FormatString {
   }
 };
 
-template <typename... Args>
-void format_impl(std::ostringstream &oss, const char *fmt, const Args &...args);
-
 inline void format_impl(std::ostringstream &oss, const char *fmt) {
-  oss << fmt;
+  while (*fmt) {
+    if (fmt[0] == '{' && fmt[1] == '{') {
+      oss << '{';
+      fmt += 2;
+      continue;
+    }
+    if (fmt[0] == '}' && fmt[1] == '}') {
+      oss << '}';
+      fmt += 2;
+      continue;
+    }
+    oss << *fmt++;
+  }
 }
 
 template <typename T, typename... Args>
@@ -57,13 +67,17 @@ void format_impl(std::ostringstream &oss, const char *fmt, const T &arg,
       fmt += 2;
       continue;
     }
+    if (fmt[0] == '}' && fmt[1] == '}') {
+      oss << '}';
+      fmt += 2;
+      continue;
+    }
     if (fmt[0] == '{' && fmt[1] == '}') {
       oss << arg;
       format_impl(oss, fmt + 2, args...);
       return;
     }
-    oss << *fmt;
-    ++fmt;
+    oss << *fmt++;
   }
 }
 
@@ -79,7 +93,8 @@ void safe_fmt_print_impl(const Args &...args) {
   format_impl(oss, Fmt.str, args...);
   std::cout << oss.str() << std::endl;
 }
+} // namespace inner
 
-#define print(fmt_str, ...) safe_fmt_print_impl<fmt_str>(__VA_ARGS__)
+#define print(fmt_str, ...) inner::safe_fmt_print_impl<fmt_str>(__VA_ARGS__)
 
 } // namespace cppkit
