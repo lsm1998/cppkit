@@ -1,4 +1,4 @@
-option(ENABLE_TESTING "Enable testing" OFF)
+option(ENABLE_TESTING "Enable testing" ON)
 
 if(ENABLE_TESTING)
     enable_testing()
