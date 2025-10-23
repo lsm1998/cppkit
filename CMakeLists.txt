@@ -11,6 +11,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Enable generation of compile_commands.json for tooling support
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Define the shared library target
 add_library(cppkit SHARED
     src/cppkit.cpp
