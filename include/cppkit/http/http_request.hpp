@@ -122,18 +122,25 @@ public:
 private:
   std::vector<uint8_t> buildRequestData(const std::string &host,
                                         const std::string &path, int port,
-                                        bool https);
+                                        bool https) const;
 };
 
 class HttpResponse {
   friend HttpClient;
 
 private:
-  int status_code = 0;
+  int statusCode = 0;
   std::map<std::string, std::string> headers;
   std::vector<uint8_t> body;
 
 public:
+  HttpResponse() = default;
+
+  HttpResponse(int statusCode, std::map<std::string, std::string> headers,
+               std::vector<uint8_t> body)
+      : statusCode(statusCode), headers(std::move(headers)),
+        body(std::move(body)) {}
+
   int getStatusCode() const;
 
   std::vector<uint8_t> getBody() const;
@@ -143,7 +150,7 @@ public:
   std::string getHeader(const std::string &key) const;
 
 private:
-  static HttpResponse parseResponse(const std::string &raw);
+  static HttpResponse parseResponse(const std::vector<uint8_t> &raw);
 };
 
 } // namespace cppkit::http

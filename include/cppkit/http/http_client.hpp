@@ -49,10 +49,12 @@ public:
 
 private:
   static void parseUrl(const std::string &url, std::string &host,
-                       std::string &path,int &port, bool https);
+                       std::string &path, int &port, bool https);
 
   static int connect2host(const std::string &host, int port);
 
-  static int sendRequest(int fd, std::vector<uint8_t> body);
+  static size_t sendData(int fd, std::vector<uint8_t> body);
+
+  static std::vector<uint8_t> recvData(int fd);
 };
 } // namespace cppkit::http

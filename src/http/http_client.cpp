@@ -1,4 +1,8 @@
 #include "cppkit/http/http_client.hpp"
+#include <cstdint>
+#include <stdexcept>
+#include <unistd.h>
+#include <vector>
 
 namespace cppkit::http {
 HttpResponse
@@ -34,9 +38,18 @@ HttpResponse HttpClient::Do(const HttpRequest &request) {
   // 解析url域名对应的ip地址
   std::string host, path;
   int port{};
-  parseUrl(request.url, host, path, port, request.url.starts_with("https"));
+  bool https = request.url.starts_with("https");
+  parseUrl(request.url, host, path, port, https);
   int fd = connect2host(host, port);
-  return {};
+
+  if (sendData(fd, request.buildRequestData(host, path, port, https)) <= 0) {
+    close(fd);
+    throw std::runtime_error("Failed to send request to " + host);
+  }
+
+  // 读取响应
+  auto data = recvData(fd);
+  return HttpResponse::parseResponse(data);
 }
 
 void HttpClient::parseUrl(const std::string &url, std::string &host,
@@ -122,4 +135,41 @@ int HttpClient::connect2host(const std::string &host, int port) {
   freeaddrinfo(res);
   return fd;
 }
+
+size_t HttpClient::sendData(int fd, std::vector<uint8_t> body) {
+  size_t totalSent = 0;
+  size_t size = body.size();
+
+  while (totalSent < size) {
+    ssize_t sent = ::send(fd, body.data() + totalSent, size - totalSent, 0);
+
+    if (sent < 0) {
+      if (errno == EINTR)
+        continue;
+      return -1;
+    }
+
+    if (sent == 0)
+      break;
+
+    totalSent += sent;
+  }
+
+  return totalSent;
+}
+
+std::vector<uint8_t> HttpClient::recvData(int fd) {
+  std::vector<uint8_t> buffer;
+  uint8_t data[BUFFER_SIZE];
+
+  while (true) {
+    int n = ::recv(fd, data, sizeof(data), 0);
+    if (n <= 0)
+      break;
+    buffer.insert(buffer.end(), data, data + n);
+  }
+
+  return buffer;
+}
+
 } // namespace cppkit::http
