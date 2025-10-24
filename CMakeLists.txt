@@ -17,6 +17,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Define the shared library target
 add_library(cppkit SHARED
     src/cppkit.cpp
+    src/http/http_client.cpp
+    src/http/http_request.cpp
 )
 
 # Specify include directories for the target
