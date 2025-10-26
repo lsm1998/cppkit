@@ -19,6 +19,7 @@ add_library(cppkit SHARED
     src/cppkit.cpp
     src/http/http_client.cpp
     src/http/http_request.cpp
+    src/io/file.cpp
 )
 
 # Specify include directories for the target
