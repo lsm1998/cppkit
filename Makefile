@@ -5,7 +5,7 @@
 
 BUILD_DIR   := build
 PID_FILE    := $(BUILD_DIR)/app.pid
-CMAKE_FLAGS := -DCMAKE_BUILD_TYPE=Release
+CMAKE_FLAGS := -DCMAKE_BUILD_TYPE=Debug
 
 # 自动检测可执行文件：取 build/ 下最新的可执行文件（排除 CMake 自己的文件）
 EXECUTABLE := $(shell find $(BUILD_DIR) -type f -executable ! -name "cmake*" 2>/dev/null | head -n 1)

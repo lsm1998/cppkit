@@ -39,6 +39,10 @@ HttpResponse HttpClient::Do(const HttpRequest &request) {
   std::string host, path;
   int port{};
   bool https = request.url.starts_with("https");
+  // 不支持https
+  if (https) {
+    throw std::runtime_error("HTTPS is not supported yet");
+  }
   parseUrl(request.url, host, path, port, https);
   int fd = connect2host(host, port);
 
