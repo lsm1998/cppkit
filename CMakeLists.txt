@@ -21,6 +21,7 @@ add_library(cppkit SHARED
     src/http/http_request.cpp
     src/io/file.cpp
     src/strings.cpp
+    src/arg_parser.cpp
 )
 
 # Specify include directories for the target
