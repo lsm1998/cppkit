@@ -1,5 +1,6 @@
 #include "cppkit/arg_parser.hpp"
 #include <iostream>
+#include <string>
 
 int main(int argc, char *argv[]) {
   cppkit::ArgParser parser;
@@ -14,7 +15,7 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  std::cout << "Host: " << parser.get("--host") << "\n";
-  std::cout << "Port: " << parser.get("--port") << "\n";
+  std::cout << "Host: " << parser.get<std::string>("host") << "\n";
+  std::cout << "Port: " << parser.get<int>("port") << "\n";
   return 0;
 }

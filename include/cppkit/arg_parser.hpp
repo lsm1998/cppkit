@@ -1,5 +1,6 @@
 #pragma once
 
+#include "strings.hpp"
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -15,24 +16,48 @@ public:
     bool isFlag;
   };
 
-  // 添加带值选项（如 --port 8080）
   void addOption(const std::string &name, const std::string &description = "",
                  const std::string &defaultValue = "");
 
-  // 添加布尔开关（如 --verbose）
   void addFlag(const std::string &name, const std::string &description = "");
 
-  // 解析命令行参数
   void parse(int argc, char *argv[]);
 
-  // 获取参数值（若未提供，返回默认值）
-  std::string get(const std::string &name) const;
+  std::string getString(const std::string &name) const;
 
-  // 判断标志（布尔开关）是否存在
+  template <typename T> T get(const std::string &name) const {
+    std::string value = getString(name);
+    if constexpr (std::is_same_v<T, std::string>) {
+      return value;
+    } else if constexpr (std::is_same_v<T, bool>) {
+      std::string lower = toLower(value);
+      return (lower == "1" || lower == "true" || lower == "yes" ||
+              lower == "on");
+    } else if constexpr (std::is_integral_v<T>) {
+      try {
+        return static_cast<T>(std::stoll(value));
+      } catch (...) {
+        throw std::invalid_argument("Invalid integer value for option: " +
+                                    name);
+      }
+    } else if constexpr (std::is_floating_point_v<T>) {
+      try {
+        return static_cast<T>(std::stod(value));
+      } catch (...) {
+        throw std::invalid_argument("Invalid floating value for option: " +
+                                    name);
+      }
+    } else {
+      static_assert(sizeof(T) == 0, "Unsupported type in ArgParser::get()");
+    }
+  }
+
   bool has(const std::string &name) const;
 
-  // 生成帮助信息
   std::string help(const std::string &programName = "") const;
+
+private:
+  std::string normalizeKey(const std::string &key) const;
 
 private:
   std::unordered_map<std::string, Option> _options;

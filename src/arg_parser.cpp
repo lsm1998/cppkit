@@ -1,4 +1,5 @@
 #include "cppkit/arg_parser.hpp"
+#include "cppkit/strings.hpp"
 #include <sstream>
 
 namespace cppkit {
@@ -6,12 +7,14 @@ namespace cppkit {
 void ArgParser::addOption(const std::string &name,
                           const std::string &description,
                           const std::string &defaultValue) {
-  _options[name] = {name, description, defaultValue, false};
+  std::string key = normalizeKey(name);
+  _options[key] = {key, description, defaultValue, false};
 }
 
 void ArgParser::addFlag(const std::string &name,
                         const std::string &description) {
-  _options[name] = {name, description, "false", true};
+  std::string key = normalizeKey(name);
+  _options[key] = {key, description, "false", true};
 }
 
 void ArgParser::parse(int argc, char *argv[]) {
@@ -21,7 +24,7 @@ void ArgParser::parse(int argc, char *argv[]) {
   }
 
   for (size_t i = 0; i < _args.size(); ++i) {
-    std::string arg = _args[i];
+    std::string arg = normalizeKey(_args[i]);
     auto it = _options.find(arg);
     if (it != _options.end()) {
       if (it->second.isFlag) {
@@ -36,7 +39,7 @@ void ArgParser::parse(int argc, char *argv[]) {
   }
 }
 
-std::string ArgParser::get(const std::string &name) const {
+std::string ArgParser::getString(const std::string &name) const {
   auto it = _values.find(name);
   if (it != _values.end()) {
     return it->second;
@@ -51,7 +54,7 @@ std::string ArgParser::get(const std::string &name) const {
 }
 
 bool ArgParser::has(const std::string &name) const {
-  auto it = _values.find(name);
+  auto it = _values.find(normalizeKey(name));
   if (it != _values.end()) {
     return it->second == "true";
   }
@@ -76,6 +79,15 @@ std::string ArgParser::help(const std::string &programName) const {
     oss << "\n";
   }
   return oss.str();
+}
+
+std::string ArgParser::normalizeKey(const std::string &key) const {
+  if (startsWith(key, "--")) {
+    return key.substr(2);
+  } else if (startsWith(key, "-")) {
+    return key.substr(1);
+  }
+  return key;
 }
 
 } // namespace cppkit
