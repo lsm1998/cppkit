@@ -1,6 +1,9 @@
 #include "cppkit/io/file.hpp"
 #include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <string>
+#include <vector>
 
 namespace cppkit::io {
 
@@ -25,8 +28,6 @@ void registerExitHandler() {
         if (ec) {
           std::cerr << "Failed to delete: " << p << " (" << ec.message()
                     << ")\n";
-        } else {
-          std::cout << "Deleted on exit: " << p << "\n";
         }
       }
     });
@@ -104,5 +105,40 @@ std::string File::getName() const { return _path.filename(); }
 bool File::isFile() const { return std::filesystem::is_regular_file(_path); }
 
 bool File::isDirectory() const { return std::filesystem::is_directory(_path); }
+
+std::vector<File> File::listFiles() const {
+  if (!exists() || !isDirectory()) {
+    return {};
+  }
+  std::vector<File> files;
+  for (const auto &entry : std::filesystem::directory_iterator(_path)) {
+    files.emplace_back(entry.path().string());
+  }
+  return files;
+}
+
+std::vector<std::string> File::fileList() const {
+  if (!exists() || !isDirectory()) {
+    return {};
+  }
+  std::vector<std::string> files;
+  for (const auto &entry : std::filesystem::directory_iterator(_path)) {
+    files.emplace_back(entry.path().string());
+  }
+  return files;
+}
+
+bool File::mkdir() const { return std::filesystem::create_directory(_path); }
+
+bool File::mkdirs() const { return std::filesystem::create_directories(_path); }
+
+bool File::renameTo(const File &dest) const {
+  try {
+    std::filesystem::rename(_path, dest._path);
+    return true;
+  } catch (...) {
+    return false;
+  }
+}
 
 } // namespace cppkit::io

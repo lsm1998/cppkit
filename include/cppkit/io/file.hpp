@@ -1,8 +1,6 @@
 #pragma once
 
 #include <filesystem>
-#include <fstream>
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -21,7 +19,11 @@ public:
 
   File(const File &) = delete;
 
+  File(File &&) noexcept = default;
+
   File &operator=(const File &) = delete;
+
+  File &operator=(File &&) noexcept = default;
 
   ~File() = default;
 
@@ -49,12 +51,15 @@ public:
 
   bool isFile() const;
 
-private:
-  // static std::vector<std::filesystem::path> &deleteList();
+  std::vector<File> listFiles() const;
 
-  // static std::mutex &deleteListMutex();
+  std::vector<std::string> fileList() const;
 
-  // static void registerExitHandler();
+  bool mkdir() const;
+
+  bool mkdirs() const;
+
+  bool renameTo(const File &dest) const;
 };
 
 } // namespace cppkit::io

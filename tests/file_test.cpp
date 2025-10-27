@@ -11,5 +11,10 @@ int main() {
 
   std::cout << file.getAbsolutePath() << std::endl;
   file.deleteOnExit();
+
+  cppkit::io::File dir("build");
+  for (auto &item : dir.listFiles()) {
+    std::cout << item.getName() << std::endl;
+  }
   return 0;
 }
