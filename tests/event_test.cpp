@@ -4,29 +4,35 @@
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <unordered_set>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 int main() {
   cppkit::event::EventLoop loop;
   cppkit::event::TcpServer srv(loop, "", 6380);
 
+  using ConnInfoPtr = std::shared_ptr<cppkit::event::ConnInfo>;
+
   // 保存所有活跃连接
-  std::unordered_set<int> clients;
+  std::unordered_map<std::string, ConnInfoPtr> clients;
 
   // 新连接
-  srv.setOnConnection([&](int fd) {
-    std::cout << "new conn fd=" << fd << "\n";
-    clients.insert(fd);
+  srv.setOnConnection([&](const cppkit::event::ConnInfo &info) {
+    std::cout << "new conn client=" << info.getClientId() << std::endl;
+    clients[info.getClientId()] =
+        std::make_shared<cppkit::event::ConnInfo>(info);
   });
 
   // 接收到消息
-  srv.setOnMessage([&](const cppkit::event::ConnInfo &info, const std::vector<uint8_t> &msg) {
-    std::cout << "[msg] " << info.fd << ": " << std::string(msg.begin(),msg.end());
+  srv.setOnMessage([&](const cppkit::event::ConnInfo &info,
+                       const std::vector<uint8_t> &msg) {
+    std::cout << "[msg] " << info.getClientId() << ": "
+              << std::string(msg.begin(), msg.end()) << std::endl;
 
     // 广播给所有活跃客户端
-    for (int cfd : clients) {
-      if (send(cfd, msg.data(), msg.size(), 0) < 0) {
+    for (auto &client : clients) {
+      if (client.second->send(msg.data(), msg.size()) < 0) {
         perror("send");
       }
     }
@@ -39,9 +45,9 @@ int main() {
   });
 
   // 客户端关闭
-  srv.setOnClose([&](int fd) {
-    std::cout << "client closed fd=" << fd << "\n";
-    clients.erase(fd);
+  srv.setOnClose([&](const cppkit::event::ConnInfo &info) {
+    std::cout << "client closed client=" << info.getClientId() << "\n";
+    clients.erase(info.getClientId());
   });
 
   srv.start();

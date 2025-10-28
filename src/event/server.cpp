@@ -2,16 +2,21 @@
 #include <arpa/inet.h>
 #include <cassert>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
 #include <netinet/in.h>
+#include <string>
+#include <sys/_types/_ssize_t.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
 
 namespace cppkit::event {
+
+std::unordered_map<int, ConnInfo> connections_;
 
 static int setNonBlock(int fd) {
   int flags = fcntl(fd, F_GETFL, 0);
@@ -32,18 +37,21 @@ TcpServer::~TcpServer() {
 
 void TcpServer::start() {
   listenfd_ = socket(AF_INET, SOCK_STREAM, 0);
-  if (listenfd_ < 0)
+  if (listenfd_ < 0) {
     throw std::runtime_error(std::string("socket: ") + strerror(errno));
+  }
   int on = 1;
   setsockopt(listenfd_, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
   sockaddr_in sa{};
   sa.sin_family = AF_INET;
   sa.sin_port = htons(port_);
   sa.sin_addr.s_addr = addr_.empty() ? INADDR_ANY : inet_addr(addr_.c_str());
-  if (bind(listenfd_, (sockaddr *)&sa, sizeof(sa)) < 0)
+  if (bind(listenfd_, (sockaddr *)&sa, sizeof(sa)) < 0) {
     throw std::runtime_error(std::string("bind: ") + strerror(errno));
-  if (listen(listenfd_, SOMAXCONN) < 0)
+  }
+  if (listen(listenfd_, SOMAXCONN) < 0) {
     throw std::runtime_error(std::string("listen: ") + strerror(errno));
+  }
   setNonBlock(listenfd_);
   // register accept handler
   loop_.createFileEvent(listenfd_, AE_READABLE, [this](int fd, int mask) {
@@ -62,10 +70,10 @@ void TcpServer::start() {
       char ipBuf[64];
       inet_ntop(AF_INET, &cli.sin_addr, ipBuf, sizeof(ipBuf));
       uint16_t port = ntohs(cli.sin_port);
-      connections_[c] = ConnInfo{ipBuf, port, c};
+      connections_[c] = ConnInfo(ipBuf, port, c);
 
       if (onConn_) {
-        onConn_(c);
+        onConn_(connections_[c]);
       }
       // create read handler for client
       loop_.createFileEvent(c, AE_READABLE, [this](int cfd, int cmask) {
@@ -99,7 +107,7 @@ void TcpServer::start() {
           loop_.deleteFileEvent(cfd, AE_READABLE | AE_WRITABLE);
           close(cfd);
           if (onClose_) {
-            onClose_(cfd);
+            onClose_(connections_[cfd]);
           }
           connections_.erase(cfd);
         }
@@ -114,6 +122,22 @@ void TcpServer::stop() {
     close(listenfd_);
   }
   listenfd_ = -1;
+}
+
+std::string ConnInfo::getIp() const { return this->ip; }
+
+uint16_t ConnInfo::getPort() const { return this->port; }
+
+std::string ConnInfo::getClientId() const {
+  return this->ip + "@" + std::to_string(this->port);
+}
+
+ssize_t ConnInfo::send(const uint8_t *data, size_t length) const {
+  return ::send(this->fd, data, length, 0);
+}
+
+bool ConnInfo::operator==(const ConnInfo &other) const noexcept {
+  return ip == other.ip && port == other.port;
 }
 
 } // namespace cppkit::event
