@@ -22,7 +22,7 @@ int main() {
 
   // 接收到消息
   srv.setOnMessage([&](const cppkit::event::ConnInfo &info, const std::vector<uint8_t> &msg) {
-    std::cout << "[msg] " << info.fd << ": '" << std::string(msg.begin(),msg.end()) << "'\n";
+    std::cout << "[msg] " << info.fd << ": " << std::string(msg.begin(),msg.end());
 
     // 广播给所有活跃客户端
     for (int cfd : clients) {
