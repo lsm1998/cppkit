@@ -16,12 +16,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Define the shared library target
 add_library(cppkit SHARED
-    src/cppkit.cpp
     src/http/http_client.cpp
     src/http/http_request.cpp
     src/io/file.cpp
     src/strings.cpp
     src/arg_parser.cpp
+    src/event/ae.cpp
+    src/event/server.cpp
 )
 
 # Specify include directories for the target

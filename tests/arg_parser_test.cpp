@@ -10,7 +10,7 @@ int main(int argc, char *argv[]) {
 
   parser.parse(argc, argv);
 
-  if (parser.has("-h")) {
+  if (parser.has("h")) {
     std::cout << parser.help(argv[0]);
     return 0;
   }

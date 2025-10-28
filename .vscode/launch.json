@@ -25,8 +25,29 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/tests/arg_parser_test",
-            "args": ["--host" , "127.0.0.1", "--port", "9999"],
+            "args": [
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "9999"
+            ],
             "cwd": "${workspaceFolder}",
-        }
+        },
+        {
+            "name": "event_test",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/tests/event_test",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+        },
+         {
+            "name": "tcp_client_test",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/tests/tcp_client_test",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+        },
     ]
 }
