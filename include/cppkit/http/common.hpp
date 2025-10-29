@@ -1,9 +1,10 @@
 #pragma once
 
-namespace cppkit::http {
+namespace cppkit::http
+{
 
-constexpr const int BUFFER_SIZE = 4096;    
+  constexpr const int BUFFER_SIZE = 4096;
 
-class HttpClient;
+  class HttpClient;
 
-}
+}  // namespace cppkit::http

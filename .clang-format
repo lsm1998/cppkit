@@ -1,0 +1,17 @@
+BasedOnStyle: Google
+IndentWidth: 2
+ColumnLimit: 120
+DerivePointerAlignment: false
+PointerAlignment: Left
+BreakBeforeBraces: Allman
+AllowShortFunctionsOnASingleLine: Inline
+SpaceAfterCStyleCast: true
+SpaceBeforeParens: ControlStatements
+AlignAfterOpenBracket: DontAlign
+AlignOperands: true
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: false
+SortIncludes: false
+AccessModifierOffset: -2
+NamespaceIndentation: All
+ReflowComments: false

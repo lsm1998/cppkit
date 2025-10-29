@@ -4,62 +4,64 @@
 #include <string>
 #include <vector>
 
-namespace cppkit::io {
+namespace cppkit::io
+{
 
-class File {
-private:
-  std::filesystem::path _path;
+  class File
+  {
+  private:
+    std::filesystem::path _path;
 
-  bool checkPermission(std::filesystem::perms mask) const;
+    bool checkPermission(std::filesystem::perms mask) const;
 
-public:
-  explicit File(const std::string &path) : _path(std::filesystem::path(path)) {}
+  public:
+    explicit File(const std::string& path) : _path(std::filesystem::path(path)) {}
 
-  File() = delete;
+    File() = delete;
 
-  File(const File &) = delete;
+    File(const File&) = delete;
 
-  File(File &&) noexcept = default;
+    File(File&&) noexcept = default;
 
-  File &operator=(const File &) = delete;
+    File& operator=(const File&) = delete;
 
-  File &operator=(File &&) noexcept = default;
+    File& operator=(File&&) noexcept = default;
 
-  ~File() = default;
+    ~File() = default;
 
-  long size() const;
+    long size() const;
 
-  bool canRead() const;
+    bool canRead() const;
 
-  bool canWrite() const;
+    bool canWrite() const;
 
-  bool canExecute() const;
+    bool canExecute() const;
 
-  bool createNewFile() const;
+    bool createNewFile() const;
 
-  bool deleteFile() const;
+    bool deleteFile() const;
 
-  bool deleteOnExit();
+    bool deleteOnExit();
 
-  bool exists() const;
+    bool exists() const;
 
-  std::string getAbsolutePath() const;
+    std::string getAbsolutePath() const;
 
-  std::string getName() const;
+    std::string getName() const;
 
-  bool isDirectory() const;
+    bool isDirectory() const;
 
-  bool isFile() const;
+    bool isFile() const;
 
-  std::vector<File> listFiles() const;
+    std::vector<File> listFiles() const;
 
-  std::vector<std::string> fileList() const;
+    std::vector<std::string> fileList() const;
 
-  bool mkdir() const;
+    bool mkdir() const;
 
-  bool mkdirs() const;
+    bool mkdirs() const;
 
-  bool renameTo(const File &dest) const;
-};
+    bool renameTo(const File& dest) const;
+  };
 
-} // namespace cppkit::io
+}  // namespace cppkit::io

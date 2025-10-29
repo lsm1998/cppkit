@@ -1,6 +1,7 @@
 #include "cppkit/fmt.hpp"
 
-int main() {
+int main()
+{
   // 无占位符
   cppkit::print("hello bob");
 

@@ -2,10 +2,12 @@
 #include <iostream>
 #include <stdexcept>
 
-int main() {
+int main()
+{
   std::cout << "开始执行" << std::endl;
   cppkit::io::File file("hello.txt");
-  if (!file.exists() && !file.createNewFile()) {
+  if (!file.exists() && !file.createNewFile())
+  {
     throw std::runtime_error("createNewFile执行失败");
   }
 
@@ -13,7 +15,8 @@ int main() {
   file.deleteOnExit();
 
   cppkit::io::File dir("build");
-  for (auto &item : dir.listFiles()) {
+  for (auto& item : dir.listFiles())
+  {
     std::cout << item.getName() << std::endl;
   }
   return 0;
