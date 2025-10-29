@@ -3,7 +3,7 @@
 
 using namespace cppkit::json;
 
-int main(int argc,char *argv[])
+int main(int argc, char* argv[])
 {
   const auto jsonStr = R"({"name":"lsm1998","age":50,"subscribes":["YouTube","qq music",100]})";
 

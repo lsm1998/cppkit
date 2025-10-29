@@ -1,6 +1,7 @@
 #include "cppkit/event/server.hpp"
 #include <cstdint>
 #include <iostream>
+#include <ranges>
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -33,9 +34,9 @@ int main()
         std::cout << "[msg] " << info.getClientId() << ": " << std::string(msg.begin(), msg.end()) << std::endl;
 
         // 广播给所有活跃客户端
-        for (auto& client : clients)
+        for (const auto& val : clients | std::views::values)
         {
-          if (client.second->send(msg.data(), msg.size()) < 0)
+          if (val->send(msg.data(), msg.size()) < 0)
           {
             perror("send");
           }
@@ -43,12 +44,11 @@ int main()
       });
 
   // 每隔一秒钟统计当前有多少客户端在线
-  loop.createTimeEvent(1000,
-                       [&](int64_t id)
-                       {
-                         std::cout << "[stats] online clients: " << clients.size() << std::endl;
-                         return 1000;  // 返回 1000 表示 1 秒后再次触发
-                       });
+  loop.createTimeEvent(1000, [&](int64_t id)
+  {
+    std::cout << "[stats] online clients: " << clients.size() << std::endl;
+    return 1000; // 返回 1000 表示 1 秒后再次触发
+  });
 
   // 客户端关闭
   srv.setOnClose(
