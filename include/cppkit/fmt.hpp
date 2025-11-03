@@ -3,10 +3,8 @@
 #include <iostream>
 #include <sstream>
 
-namespace cppkit {
-
-namespace inner {
-constexpr size_t count_placeholders(const char *fmt, size_t len) {
+namespace cppkit::inner {
+constexpr size_t count_placeholders(const char *fmt, const size_t len) {
   size_t count = 0;
   for (size_t i = 0; i + 1 < len; ++i) {
     if (fmt[i] == '{' && fmt[i + 1] == '{') {
@@ -28,7 +26,7 @@ constexpr size_t count_placeholders(const char *fmt, size_t len) {
 }
 
 template <size_t N> struct FormatString {
-  char str[N];
+  char str[N]{};
   static constexpr size_t length = N - 1;
 
   constexpr FormatString(const char (&s)[N]) {
@@ -36,7 +34,7 @@ template <size_t N> struct FormatString {
       str[i] = s[i];
   }
 
-  constexpr size_t get_placeholder_count() const {
+  [[nodiscard]] constexpr size_t get_placeholder_count() const {
     return count_placeholders(str, N);
   }
 };
@@ -97,10 +95,10 @@ template <FormatString Fmt, typename... Args>
 void safe_fmt_print_impl(const Args &...args) {
   std::cout << safe_fmt_sprintf_impl<Fmt>(args...) << std::endl;
 }
-} // namespace inner
+} // namespace cppkit::inner
 
 #define print(fmt_str, ...) inner::safe_fmt_print_impl<fmt_str>(__VA_ARGS__)
 
 #define sprinf(fmt_str, ...) inner::safe_fmt_sprintf_impl<fmt_str>(__VA_ARGS__)
 
-} // namespace cppkit
+

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <string>
 
-int main(int argc, char* argv[])
+int main(const int argc, char* argv[])
 {
   cppkit::ArgParser parser;
   parser.addOption("--port", "Server port", "8080");
@@ -19,5 +19,4 @@ int main(int argc, char* argv[])
 
   std::cout << "Host: " << parser.get<std::string>("host") << "\n";
   std::cout << "Port: " << parser.get<int>("port") << "\n";
-  return 0;
 }

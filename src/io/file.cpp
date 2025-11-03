@@ -95,14 +95,14 @@ namespace cppkit::io
     return std::filesystem::remove_all(_path) > 0;
   }
 
-  bool File::deleteOnExit()
+  bool File::deleteOnExit() const
   {
     if (!exists())
     {
       return false;
     }
     registerExitHandler();
-    std::lock_guard<std::mutex> lock(deleteListMutex());
+    std::lock_guard lock(deleteListMutex());
     deleteList().push_back(_path);
     return true;
   }

@@ -6,16 +6,16 @@
 
 namespace cppkit::io
 {
-
   class File
   {
-  private:
     std::filesystem::path _path;
 
-    bool checkPermission(std::filesystem::perms mask) const;
+    [[nodiscard]] bool checkPermission(std::filesystem::perms mask) const;
 
   public:
-    explicit File(const std::string& path) : _path(std::filesystem::path(path)) {}
+    explicit File(const std::string& path) : _path(std::filesystem::path(path))
+    {
+    }
 
     File() = delete;
 
@@ -29,39 +29,38 @@ namespace cppkit::io
 
     ~File() = default;
 
-    long size() const;
+    [[nodiscard]] long size() const;
 
-    bool canRead() const;
+    [[nodiscard]] bool canRead() const;
 
-    bool canWrite() const;
+    [[nodiscard]] bool canWrite() const;
 
-    bool canExecute() const;
+    [[nodiscard]] bool canExecute() const;
 
-    bool createNewFile() const;
+    [[nodiscard]] bool createNewFile() const;
 
-    bool deleteFile() const;
+    [[nodiscard]] bool deleteFile() const;
 
-    bool deleteOnExit();
+    [[nodiscard]] bool deleteOnExit() const;
 
-    bool exists() const;
+    [[nodiscard]] bool exists() const;
 
-    std::string getAbsolutePath() const;
+    [[nodiscard]] std::string getAbsolutePath() const;
 
-    std::string getName() const;
+    [[nodiscard]] std::string getName() const;
 
-    bool isDirectory() const;
+    [[nodiscard]] bool isDirectory() const;
 
-    bool isFile() const;
+    [[nodiscard]] bool isFile() const;
 
-    std::vector<File> listFiles() const;
+    [[nodiscard]] std::vector<File> listFiles() const;
 
-    std::vector<std::string> fileList() const;
+    [[nodiscard]] std::vector<std::string> fileList() const;
 
-    bool mkdir() const;
+    [[nodiscard]] bool mkdir() const;
 
-    bool mkdirs() const;
+    [[nodiscard]] bool mkdirs() const;
 
-    bool renameTo(const File& dest) const;
+    [[nodiscard]] bool renameTo(const File& dest) const;
   };
-
-}  // namespace cppkit::io
+} // namespace cppkit::io
