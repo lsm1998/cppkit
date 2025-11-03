@@ -1,4 +1,7 @@
 #include "cppkit/http/http_router.hpp"
+
+#include <ranges>
+
 #include "cppkit/http/http_request.hpp"
 #include "cppkit/strings.hpp"
 
@@ -52,8 +55,8 @@ namespace cppkit::http
 
   RouteNode* Router::match(RouteNode* node,
       const std::vector<std::string>& parts,
-      size_t index,
-      std::unordered_map<std::string, std::string>& params) const
+      const size_t index,
+      std::unordered_map<std::string, std::string>& params)
   {
     if (index == parts.size() || node->isWild)
     {
@@ -65,21 +68,18 @@ namespace cppkit::http
     if (node->children.contains(part))
     {
       RouteNode* child = node->children[part].get();
-      RouteNode* result = match(child, parts, index + 1, params);
-      if (result)
+      if (RouteNode* result = match(child, parts, index + 1, params))
       {
         return result;
       }
     }
 
-    for (const auto& [key, childPtr] : node->children)
+    for (const auto& childPtr : node->children | std::views::values)
     {
-      RouteNode* child = childPtr.get();
-      if (child->isParam)
+      if (RouteNode* child = childPtr.get(); child->isParam)
       {
         params[child->segment.substr(1)] = part;
-        RouteNode* result = match(child, parts, index + 1, params);
-        if (result)
+        if (RouteNode* result = match(child, parts, index + 1, params))
         {
           return result;
         }
@@ -87,7 +87,7 @@ namespace cppkit::http
       }
       else if (child->isWild)
       {
-        params[child->segment.substr(1)] = join(std::vector<std::string>(parts.begin() + index, parts.end()), "/");
+        params[child->segment.substr(1)] = join(std::vector<std::string>(parts.begin() + static_cast<long>(index), parts.end()), "/");
         return child;
       }
     }

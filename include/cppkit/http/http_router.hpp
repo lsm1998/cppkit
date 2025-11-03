@@ -16,7 +16,7 @@ namespace cppkit::http
     bool isParam = false;
     bool isWild = false;
     std::unordered_map<std::string, std::unique_ptr<RouteNode>> children;
-    std::unordered_map<std::string, HttpHandler&> handlers;
+    std::unordered_map<std::string, HttpHandler> handlers;
   };
 
   class Router
@@ -26,13 +26,13 @@ namespace cppkit::http
 
     void addRoute(HttpMethod method, const std::string& path, const HttpHandler& handler) const;
 
-    bool exists(HttpMethod method, const std::string& path) const;
+    [[nodiscard]] bool exists(HttpMethod method, const std::string& path) const;
 
   private:
-    RouteNode* match(RouteNode* node,
+    static RouteNode* match(RouteNode* node,
         const std::vector<std::string>& parts,
         size_t index,
-        std::unordered_map<std::string, std::string>& params) const;
+        std::unordered_map<std::string, std::string>& params);
 
     std::unique_ptr<RouteNode> root;
   };

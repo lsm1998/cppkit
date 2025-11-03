@@ -5,21 +5,16 @@ int main()
 {
   using namespace cppkit::http;
 
-  Router router;
+  const Router router{};
   router.addRoute(HttpMethod::Get,
       "/test",
       [](const std::unordered_map<std::string, std::string>& params)
       {
-        // Handle GET /test
-        std::cout << "Handling GET /test" << std::endl;
+        std::cout << "执行test" << std::endl;
       });
-  if (router.exists(HttpMethod::Get, "/test"))
+  if (!router.exists(HttpMethod::Get, "/test"))
   {
-    std::cout << "Route /test exists for GET method." << std::endl;
-  }
-  else
-  {
-    std::cout << "Route /test does not exist for GET method." << std::endl;
+    throw std::runtime_error("路由不存在");
   }
   return 0;
 }
