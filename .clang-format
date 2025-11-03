@@ -1,17 +1,74 @@
+# -----------------------------------------------------------------------------
+# cppkit 项目代码格式化配置
+# 混合风格：Google 基础 + Allman 大括号风格 + 可读性优先
+# 适用于 C++17 / C++20
+# -----------------------------------------------------------------------------
+
 BasedOnStyle: Google
-IndentWidth: 2
-ColumnLimit: 120
-DerivePointerAlignment: false
-PointerAlignment: Left
-BreakBeforeBraces: Allman
-AllowShortFunctionsOnASingleLine: Inline
-SpaceAfterCStyleCast: true
-SpaceBeforeParens: ControlStatements
-AlignAfterOpenBracket: DontAlign
-AlignOperands: true
-AlignConsecutiveAssignments: true
-AlignConsecutiveDeclarations: false
-SortIncludes: false
-AccessModifierOffset: -2
-NamespaceIndentation: All
-ReflowComments: false
+
+# 基础缩进与行宽
+IndentWidth: 2                 # 缩进宽度（Google 默认 2）
+TabWidth: 2                    # Tab 宽度
+UseTab: Never                  # 只使用空格，不使用 Tab
+ColumnLimit: 120               # 每行最大宽度（超过则自动换行）
+
+# 指针与引用风格
+DerivePointerAlignment: false  # 禁止从上下文推导指针对齐方式
+PointerAlignment: Left         # Type* ptr（星号靠左）
+
+# 括号与大括号
+BreakBeforeBraces: Allman      # 大括号单独成行（Allman 风格）
+AllowShortFunctionsOnASingleLine: Inline  # 简短函数可单行写
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+SpaceBeforeParens: ControlStatements  # 控制语句 (if, for) 后加空格
+
+# 赋值与声明对齐
+AlignConsecutiveAssignments: false      # 对齐连续赋值
+AlignConsecutiveDeclarations: false    # 不强制对齐声明
+AlignAfterOpenBracket: DontAlign       # 括号内参数不强制对齐
+AlignOperands: true                    # 对齐长表达式的操作数
+
+# include 管理
+SortIncludes: false                    # 不自动重排 include 顺序
+IncludeBlocks: Preserve                # 保留 include 分组
+
+# 命名空间与作用域
+NamespaceIndentation: All              # 命名空间内部内容整体缩进
+AccessModifierOffset: -2               # class 内 public/private 左缩进两格
+IndentCaseLabels: true                 # switch-case 缩进
+
+# 空格与空行
+SpaceAfterCStyleCast: true             # C 风格强制转换后添加空格 (例如 (int) x)
+SpacesInParentheses: false             # 括号内部不加空格
+SpacesInSquareBrackets: false          # 数组下标中不加空格
+SpacesBeforeTrailingComments: 1        # 尾注释前留一格
+KeepEmptyLinesAtTheStartOfBlocks: false
+AllowAllParametersOfDeclarationOnNextLine: true
+
+# 注释
+ReflowComments: false                  # 不自动重排注释行
+CommentPragmas: '^ IWYU pragma:'       # 保留 IWYU 注释
+
+# 语言模式
+Language: Cpp
+Standard: Latest                       # 跟随项目编译标准（如 C++20）
+
+# 函数参数与换行
+BinPackParameters: false               # 参数不强制打包成一行
+BinPackArguments: false
+AlwaysBreakTemplateDeclarations: Yes   # 模板声明换行（模板较多时可读性更好）
+
+# 枚举与列表
+AllowShortEnumsOnASingleLine: false
+AllowAllConstructorInitializersOnNextLine: true
+
+# 预处理指令
+IndentPPDirectives: AfterHash          # #ifdef 内容缩进
+SpaceAfterLogicalNot: false            # 不在 ! 后加空格
+
+# -----------------------------------------------------------------------------
+# 推荐：
+#   clang-format -i path/to/file.cpp
+#   或在 CLion / VSCode 保存时自动格式化
+# -----------------------------------------------------------------------------

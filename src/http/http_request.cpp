@@ -51,7 +51,8 @@ std::vector<uint8_t> HttpRequest::buildRequestData(
 
   if (!body.empty())
   {
-    if (headers.find("Content-Length") == headers.end()) req << "Content-Length: " << body.size() << "\r\n";
+    if (headers.find("Content-Length") == headers.end())
+      req << "Content-Length: " << body.size() << "\r\n";
   }
 
   req << "\r\n";
@@ -72,7 +73,7 @@ HttpResponse HttpResponse::parseResponse(const std::vector<uint8_t>& raw)
   }
 
   std::string header_part = text.substr(0, header_end);
-  std::string body_part   = text.substr(header_end + 4);
+  std::string body_part = text.substr(header_end + 4);
 
   std::istringstream stream(header_part);
   std::string line;
@@ -88,7 +89,8 @@ HttpResponse HttpResponse::parseResponse(const std::vector<uint8_t>& raw)
   while (std::getline(stream, line) && !line.empty())
   {
     auto pos = line.find(':');
-    if (pos != std::string::npos) headers[line.substr(0, pos)] = line.substr(pos + 2);
+    if (pos != std::string::npos)
+      headers[line.substr(0, pos)] = line.substr(pos + 2);
   }
 
   body.assign(body_part.begin(), body_part.end());

@@ -61,10 +61,10 @@ namespace cppkit::http
   void HttpClient::parseUrl(const std::string& url, std::string& host, std::string& path, int& port, bool https)
   {
     std::string prefix = https ? "https://" : "http://";
-    size_t start       = prefix.size();
-    size_t slash       = url.find('/', start);
-    host               = url.substr(start, slash - start);
-    path               = (slash == std::string::npos) ? "/" : url.substr(slash);
+    size_t start = prefix.size();
+    size_t slash = url.find('/', start);
+    host = url.substr(start, slash - start);
+    path = (slash == std::string::npos) ? "/" : url.substr(slash);
 
     // 是否存在端口
     size_t colon = host.find(':');
@@ -84,14 +84,14 @@ namespace cppkit::http
     bool is_ipv6 = inet_pton(AF_INET6, host.c_str(), &addr6) == 1;
 
     if (is_ipv4 || is_ipv6)
-    {  // 已经是IP地址了
+    { // 已经是IP地址了
       return;
     }
 
     // 将host从域名转为ip地址
     struct addrinfo hints{}, *res = nullptr;
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family   = AF_UNSPEC;
+    hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
     int status = getaddrinfo(host.c_str(), nullptr, &hints, &res);
@@ -101,17 +101,17 @@ namespace cppkit::http
     }
 
     char ipstr[INET6_ADDRSTRLEN] = {0};
-    void* addr                   = nullptr;
+    void* addr = nullptr;
 
     if (res->ai_family == AF_INET)
     {
       struct sockaddr_in* ipv4 = reinterpret_cast<struct sockaddr_in*>(res->ai_addr);
-      addr                     = &(ipv4->sin_addr);
+      addr = &(ipv4->sin_addr);
     }
     else if (res->ai_family == AF_INET6)
     {
       struct sockaddr_in6* ipv6 = reinterpret_cast<struct sockaddr_in6*>(res->ai_addr);
-      addr                      = &(ipv6->sin6_addr);
+      addr = &(ipv6->sin6_addr);
     }
 
     if (addr)
@@ -126,7 +126,7 @@ namespace cppkit::http
   int HttpClient::connect2host(const std::string& host, int port)
   {
     struct addrinfo hints{}, *res;
-    hints.ai_family   = AF_UNSPEC;
+    hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
     std::string port_str = std::to_string(port);
@@ -155,7 +155,7 @@ namespace cppkit::http
   size_t HttpClient::sendData(int fd, std::vector<uint8_t> body)
   {
     size_t totalSent = 0;
-    size_t size      = body.size();
+    size_t size = body.size();
 
     while (totalSent < size)
     {
@@ -163,11 +163,13 @@ namespace cppkit::http
 
       if (sent < 0)
       {
-        if (errno == EINTR) continue;
+        if (errno == EINTR)
+          continue;
         return -1;
       }
 
-      if (sent == 0) break;
+      if (sent == 0)
+        break;
 
       totalSent += sent;
     }
@@ -183,11 +185,12 @@ namespace cppkit::http
     while (true)
     {
       int n = ::recv(fd, data, sizeof(data), 0);
-      if (n <= 0) break;
+      if (n <= 0)
+        break;
       buffer.insert(buffer.end(), data, data + n);
     }
 
     return buffer;
   }
 
-}  // namespace cppkit::http
+} // namespace cppkit::http

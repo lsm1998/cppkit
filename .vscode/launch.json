@@ -49,5 +49,13 @@
             "args": [],
             "cwd": "${workspaceFolder}",
         },
+        {
+            "name": "http_router_test",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/tests/http_router_test",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+        }
     ]
 }
