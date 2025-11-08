@@ -10,7 +10,7 @@
 
 namespace cppkit::http
 {
-  enum HttpMethod
+  enum class HttpMethod
   {
     Get,
     Post,
@@ -19,10 +19,10 @@ namespace cppkit::http
   };
 
   static const std::unordered_map<HttpMethod, std::string> _httpMethodValMap = {
-      {Get, "GET"},
-      {Post, "POST"},
-      {Put, "PUT"},
-      {Delete, "DELETE"},
+      {HttpMethod::Get, "GET"},
+      {HttpMethod::Post, "POST"},
+      {HttpMethod::Put, "PUT"},
+      {HttpMethod::Delete, "DELETE"},
   };
 
   static std::string httpMethodValue(const HttpMethod method)
@@ -35,7 +35,7 @@ namespace cppkit::http
     friend HttpClient;
 
   public:
-    HttpMethod method{Get};
+    HttpMethod method{HttpMethod::Get};
     std::string url;
     std::map<std::string, std::string> headers;
     std::vector<uint8_t> body;

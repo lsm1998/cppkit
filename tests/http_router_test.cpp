@@ -11,12 +11,12 @@ int main()
   using namespace cppkit::http;
 
   const Router router{};
-  router.addRoute(Get, "/test/:id", handleTest);
-  if (!router.exists(Get, "/test/123"))
+  router.addRoute(HttpMethod::Get, "/test/:id", handleTest);
+  if (!router.exists(HttpMethod::Get, "/test/123"))
   {
     throw std::runtime_error("路由不存在");
   }
-  const auto handler = router.find(Get, "/test/123");
+  const auto handler = router.find(HttpMethod::Get, "/test/123");
   const HttpRequest request;
   HttpResponseWriter writer(0);
   handler(request, writer);
