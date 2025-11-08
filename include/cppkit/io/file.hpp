@@ -1,15 +1,16 @@
 #pragma once
 
+#include "io.hpp"
 #include <filesystem>
 #include <string>
 #include <vector>
+#include <fstream>
+#include <functional>
 
 namespace cppkit::io
 {
   class File
   {
-    std::filesystem::path _path;
-
     [[nodiscard]] bool checkPermission(std::filesystem::perms mask) const;
 
   public:
@@ -29,7 +30,7 @@ namespace cppkit::io
 
     ~File() = default;
 
-    [[nodiscard]] long size() const;
+    [[nodiscard]] size_t size() const;
 
     [[nodiscard]] bool canRead() const;
 
@@ -62,5 +63,21 @@ namespace cppkit::io
     [[nodiscard]] bool mkdirs() const;
 
     [[nodiscard]] bool renameTo(const File& dest) const;
+
+    size_t read(char* buffer, size_t size, size_t offset = 0) const;
+
+    size_t write(const char* buffer, size_t size, size_t offset = 0, bool append = false) const;
+
+    size_t read(const std::function<void(const char*, ssize_t)>& fun, size_t offset = 0, int chunk = BUFFER_SIZE) const;
+
+  private:
+    bool open() const;
+
+    void close() const;
+
+    std::filesystem::path _path;
+    mutable std::ifstream _ifs;
+    mutable std::ofstream _ofs;
+    mutable bool _isOpen{false};
   };
 } // namespace cppkit::io
