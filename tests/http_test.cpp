@@ -4,7 +4,7 @@
 int main()
 {
   cppkit::http::HttpClient client{};
-  const auto resp = client.Get("http://www.google.com/");
+  const auto resp = client.Get("http://www.baidu.com/");
   std::cout << "statusCode=" << resp.getStatusCode() << std::endl;
   auto body = resp.getBody();
   std::cout << std::string(body.begin(), body.end()) << std::endl;

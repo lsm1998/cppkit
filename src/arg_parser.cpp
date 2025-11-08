@@ -7,17 +7,17 @@ namespace cppkit
 
   void ArgParser::addOption(const std::string& name, const std::string& description, const std::string& defaultValue)
   {
-    std::string key = normalizeKey(name);
+    const std::string key = normalizeKey(name);
     _options[key]   = {key, description, defaultValue, false};
   }
 
   void ArgParser::addFlag(const std::string& name, const std::string& description)
   {
-    std::string key = normalizeKey(name);
+    const std::string key = normalizeKey(name);
     _options[key]   = {key, description, "false", true};
   }
 
-  void ArgParser::parse(int argc, char* argv[])
+  void ArgParser::parse(const int argc, char* argv[])
   {
     _args.clear();
     for (int i = 1; i < argc; ++i)
@@ -50,14 +50,12 @@ namespace cppkit
 
   std::string ArgParser::getString(const std::string& name) const
   {
-    auto it = _values.find(name);
-    if (it != _values.end())
+    if (const auto it = _values.find(name); it != _values.end())
     {
       return it->second;
     }
 
-    auto def = _options.find(name);
-    if (def != _options.end())
+    if (const auto def = _options.find(name); def != _options.end())
     {
       return def->second.defaultValue;
     }
@@ -106,7 +104,7 @@ namespace cppkit
     {
       return key.substr(2);
     }
-    else if (startsWith(key, "-"))
+    if (startsWith(key, "-"))
     {
       return key.substr(1);
     }

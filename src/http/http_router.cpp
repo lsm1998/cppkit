@@ -44,13 +44,20 @@ namespace cppkit::http
   {
     const auto parts = split(path, '/');
     std::unordered_map<std::string, std::string> params;
-    RouteNode* node = match(root.get(), parts, 0, params);
+    const RouteNode* node = match(root.get(), parts, 0, params);
+    return node && node->handlers.contains(httpMethodValue(method));
+  }
 
-    if (node && node->handlers.contains(httpMethodValue(method)))
+  HttpHandler Router::find(const HttpMethod method, const std::string& path) const
+  {
+    const auto parts = split(path, '/');
+    std::unordered_map<std::string, std::string> params;
+    if (const RouteNode* node = match(root.get(), parts, 0, params);
+      node && node->handlers.contains(httpMethodValue(method)))
     {
-      return true;
+      return node->handlers.at(httpMethodValue(method));
     }
-    return false;
+    return nullptr;
   }
 
   RouteNode* Router::match(RouteNode* node,
@@ -87,7 +94,9 @@ namespace cppkit::http
       }
       else if (child->isWild)
       {
-        params[child->segment.substr(1)] = join(std::vector<std::string>(parts.begin() + static_cast<long>(index), parts.end()), "/");
+        params[child->segment.substr(1)] = join(
+            std::vector<std::string>(parts.begin() + static_cast<long>(index), parts.end()),
+            "/");
         return child;
       }
     }

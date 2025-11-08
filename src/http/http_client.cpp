@@ -1,5 +1,5 @@
 #include "cppkit/http/http_client.hpp"
-#include <cstdint>
+#include <netdb.h>
 #include <stdexcept>
 #include <unistd.h>
 #include <vector>
@@ -8,28 +8,34 @@ namespace cppkit::http
 {
   HttpResponse HttpClient::Get(const std::string& url, const std::map<std::string, std::string>& headers)
   {
-    HttpRequest request(HttpMethod::Get, url, headers);
+    const HttpRequest request(HttpMethod::Get, url, headers);
     return this->Do(request);
   }
 
   HttpResponse HttpClient::Post(
-      const std::string& url, const std::map<std::string, std::string>& headers, const std::vector<uint8_t>& body)
+      const std::string& url,
+      const std::map<std::string, std::string>& headers,
+      const std::vector<uint8_t>& body)
   {
-    HttpRequest request(HttpMethod::Post, url, headers, body);
+    const HttpRequest request(HttpMethod::Post, url, headers, body);
     return this->Do(request);
   }
 
   HttpResponse HttpClient::Put(
-      const std::string& url, const std::map<std::string, std::string>& headers, const std::vector<uint8_t>& body)
+      const std::string& url,
+      const std::map<std::string, std::string>& headers,
+      const std::vector<uint8_t>& body)
   {
-    HttpRequest request(HttpMethod::Put, url, headers, body);
+    const HttpRequest request(HttpMethod::Put, url, headers, body);
     return this->Do(request);
   }
 
   HttpResponse HttpClient::Delete(
-      const std::string& url, const std::map<std::string, std::string>& headers, const std::vector<uint8_t>& body)
+      const std::string& url,
+      const std::map<std::string, std::string>& headers,
+      const std::vector<uint8_t>& body)
   {
-    HttpRequest request(HttpMethod::Delete, url, headers, body);
+    const HttpRequest request(HttpMethod::Delete, url, headers, body);
     return this->Do(request);
   }
 
@@ -38,14 +44,14 @@ namespace cppkit::http
     // 解析url域名对应的ip地址
     std::string host, path;
     int port{};
-    bool https = request.url.starts_with("https");
+    const bool https = request.url.starts_with("https");
     // 不支持https
     if (https)
     {
       throw std::runtime_error("HTTPS is not supported yet");
     }
     parseUrl(request.url, host, path, port, https);
-    int fd = connect2host(host, port);
+    const int fd = connect2host(host, port);
 
     if (sendData(fd, request.buildRequestData(host, path, port, https)) <= 0)
     {
@@ -54,21 +60,20 @@ namespace cppkit::http
     }
 
     // 读取响应
-    auto data = recvData(fd);
+    const auto data = recvData(fd);
     return HttpResponse::parseResponse(data);
   }
 
   void HttpClient::parseUrl(const std::string& url, std::string& host, std::string& path, int& port, bool https)
   {
-    std::string prefix = https ? "https://" : "http://";
-    size_t start = prefix.size();
-    size_t slash = url.find('/', start);
+    const std::string prefix = https ? "https://" : "http://";
+    const size_t start = prefix.size();
+    const size_t slash = url.find('/', start);
     host = url.substr(start, slash - start);
     path = (slash == std::string::npos) ? "/" : url.substr(slash);
 
     // 是否存在端口
-    size_t colon = host.find(':');
-    if (colon != std::string::npos)
+    if (const size_t colon = host.find(':'); colon != std::string::npos)
     {
       port = std::stoi(host.substr(colon + 1));
       host = host.substr(0, colon);
@@ -78,18 +83,19 @@ namespace cppkit::http
       port = https ? 443 : 80;
     }
 
-    struct in_addr addr4;
-    struct in6_addr addr6;
-    bool is_ipv4 = inet_pton(AF_INET, host.c_str(), &addr4) == 1;
-    bool is_ipv6 = inet_pton(AF_INET6, host.c_str(), &addr6) == 1;
+    in_addr addr4{};
+    in6_addr addr6{};
+    const bool is_ipv4 = inet_pton(AF_INET, host.c_str(), &addr4) == 1;
+    const bool is_ipv6 = inet_pton(AF_INET6, host.c_str(), &addr6) == 1;
 
     if (is_ipv4 || is_ipv6)
-    { // 已经是IP地址了
+    {
+      // 已经是IP地址了
       return;
     }
 
     // 将host从域名转为ip地址
-    struct addrinfo hints{}, *res = nullptr;
+    addrinfo hints{}, *res = nullptr;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -101,16 +107,16 @@ namespace cppkit::http
     }
 
     char ipstr[INET6_ADDRSTRLEN] = {0};
-    void* addr = nullptr;
+    const void* addr = nullptr;
 
     if (res->ai_family == AF_INET)
     {
-      struct sockaddr_in* ipv4 = reinterpret_cast<struct sockaddr_in*>(res->ai_addr);
+      auto* ipv4 = reinterpret_cast<struct sockaddr_in*>(res->ai_addr);
       addr = &(ipv4->sin_addr);
     }
     else if (res->ai_family == AF_INET6)
     {
-      struct sockaddr_in6* ipv6 = reinterpret_cast<struct sockaddr_in6*>(res->ai_addr);
+      auto* ipv6 = reinterpret_cast<struct sockaddr_in6*>(res->ai_addr);
       addr = &(ipv6->sin6_addr);
     }
 
@@ -123,9 +129,9 @@ namespace cppkit::http
     freeaddrinfo(res);
   }
 
-  int HttpClient::connect2host(const std::string& host, int port)
+  int HttpClient::connect2host(const std::string& host, const int port)
   {
-    struct addrinfo hints{}, *res;
+    addrinfo hints{}, *res;
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
@@ -152,10 +158,10 @@ namespace cppkit::http
     return fd;
   }
 
-  size_t HttpClient::sendData(int fd, std::vector<uint8_t> body)
+  size_t HttpClient::sendData(const int fd, const std::vector<uint8_t>& body)
   {
     size_t totalSent = 0;
-    size_t size = body.size();
+    const size_t size = body.size();
 
     while (totalSent < size)
     {
@@ -184,7 +190,7 @@ namespace cppkit::http
 
     while (true)
     {
-      int n = ::recv(fd, data, sizeof(data), 0);
+      const ssize_t n = ::recv(fd, data, sizeof(data), 0);
       if (n <= 0)
         break;
       buffer.insert(buffer.end(), data, data + n);
@@ -192,5 +198,4 @@ namespace cppkit::http
 
     return buffer;
   }
-
 } // namespace cppkit::http

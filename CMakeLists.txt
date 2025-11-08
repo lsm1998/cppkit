@@ -25,6 +25,8 @@ add_library(cppkit SHARED
         src/arg_parser.cpp
         src/event/ae.cpp
         src/event/server.cpp
+        include/cppkit/http/http_respone.hpp
+        src/http/http_respone.cpp
 )
 
 # Specify include directories for the target

@@ -6,8 +6,8 @@ namespace cppkit
 
   std::string trim(const std::string& s)
   {
-    auto start = s.find_first_not_of(" \t\n\r");
-    auto end   = s.find_last_not_of(" \t\n\r");
+    const auto start = s.find_first_not_of(" \t\n\r");
+    const auto end   = s.find_last_not_of(" \t\n\r");
     if (start == std::string::npos)
     {
       return "";
@@ -38,17 +38,17 @@ namespace cppkit
 
   std::string toLower(std::string s)
   {
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+    std::ranges::transform(s, s.begin(), [](const unsigned char c) { return std::tolower(c); });
     return s;
   }
 
   std::string toUpper(std::string s)
   {
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::toupper(c); });
+    std::ranges::transform(s, s.begin(), [](const unsigned char c) { return std::toupper(c); });
     return s;
   }
 
-  std::vector<std::string> split(const std::string& s, char delimiter)
+  std::vector<std::string> split(const std::string& s, const char delimiter)
   {
     std::vector<std::string> result;
     size_t start = 0;

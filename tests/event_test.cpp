@@ -1,18 +1,15 @@
 #include "cppkit/event/server.hpp"
-#include <cstdint>
 #include <iostream>
 #include <ranges>
 #include <string>
 #include <sys/socket.h>
-#include <unistd.h>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 int main()
 {
   cppkit::event::EventLoop loop;
-  cppkit::event::TcpServer srv(loop, "", 6380);
+  cppkit::event::TcpServer srv(&loop, "", 6380);
 
   using ConnInfoPtr = std::shared_ptr<cppkit::event::ConnInfo>;
 
@@ -44,11 +41,12 @@ int main()
       });
 
   // 每隔一秒钟统计当前有多少客户端在线
-  loop.createTimeEvent(1000, [&](int64_t id)
-  {
-    std::cout << "[stats] online clients: " << clients.size() << std::endl;
-    return 1000; // 返回 1000 表示 1 秒后再次触发
-  });
+  loop.createTimeEvent(1000,
+      [&](int64_t id)
+      {
+        std::cout << "[stats] online clients: " << clients.size() << std::endl;
+        return 1000; // 返回 1000 表示 1 秒后再次触发
+      });
 
   // 客户端关闭
   srv.setOnClose(

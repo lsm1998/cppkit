@@ -1,44 +1,52 @@
 #pragma once
 
 #include "http_request.hpp"
+#include "http_router.hpp"
+#include "http_respone.hpp"
+#include "cppkit/event/server.hpp"
 #include <string>
 #include <functional>
 
 namespace cppkit::http
 {
-  using HttpHandler = std::function<std::string(const HttpRequest& request, HttpResponse& response)>;
-
   class HttpServer
   {
   public:
-    HttpServer(std::string host = "localhost", int port = 80) : _host(std::move(host)), _port(port) {};
+    explicit HttpServer(std::string host = "localhost", const int port = 80) : _port(port), _host(std::move(host))
+    {
+    };
 
     void start();
 
     void stop();
 
-    void Get(const std::string& path, const HttpHandler& handler);
+    void Get(const std::string& path, const HttpHandler& handler) const;
 
-    void Post(const std::string& path, const HttpHandler& handler);
+    void Post(const std::string& path, const HttpHandler& handler) const;
 
-    void Put(const std::string& path, const HttpHandler& handler);
+    void Put(const std::string& path, const HttpHandler& handler) const;
 
-    void Delete(const std::string& path, const HttpHandler& handler);
+    void Delete(const std::string& path, const HttpHandler& handler) const;
 
     ~HttpServer() = default;
 
-    void setPort(int port) { _port = port; }
+    void setPort(const int port) { _port = port; }
 
-    int getPort() const { return _port; }
+    [[nodiscard]] int getPort() const { return _port; }
 
-    std::string getHost() const { return _host; }
+    [[nodiscard]] std::string getHost() const { return _host; }
 
     void setHost(std::string host) { _host = std::move(host); }
 
   private:
-    void addRoute(HttpMethod method, const std::string& path, const HttpHandler& handler);
+    void addRoute(HttpMethod method, const std::string& path, const HttpHandler& handler) const;
+
+    void handleRequest(const HttpRequest& request, HttpResponseWriter& writer) const;
 
     int _port;
     std::string _host;
+    Router _router;
+    event::EventLoop _loop{};
+    event::TcpServer _server{};
   };
 } // namespace cppkit::http

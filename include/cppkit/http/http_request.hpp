@@ -10,7 +10,6 @@
 
 namespace cppkit::http
 {
-
   enum HttpMethod
   {
     Get,
@@ -20,13 +19,13 @@ namespace cppkit::http
   };
 
   static const std::unordered_map<HttpMethod, std::string> _httpMethodValMap = {
-      {HttpMethod::Get, "GET"},
-      {HttpMethod::Post, "POST"},
-      {HttpMethod::Put, "PUT"},
-      {HttpMethod::Delete, "DELETE"},
+      {Get, "GET"},
+      {Post, "POST"},
+      {Put, "PUT"},
+      {Delete, "DELETE"},
   };
 
-  static std::string httpMethodValue(HttpMethod method)
+  static std::string httpMethodValue(const HttpMethod method)
   {
     return _httpMethodValMap.at(method);
   }
@@ -36,23 +35,28 @@ namespace cppkit::http
     friend HttpClient;
 
   public:
-    HttpMethod method;
+    HttpMethod method{Get};
     std::string url;
     std::map<std::string, std::string> headers;
     std::vector<uint8_t> body;
 
     HttpRequest() = default;
 
-    HttpRequest(HttpMethod method, std::string url) : method(method), url(std::move(url)) {}
+    HttpRequest(const HttpMethod method, std::string url) : method(method), url(std::move(url))
+    {
+    }
 
-    HttpRequest(HttpMethod method, std::string url, std::map<std::string, std::string> headers)
-        : method(method), url(std::move(url)), headers(std::move(headers))
+    HttpRequest(const HttpMethod method, std::string url, std::map<std::string, std::string> headers)
+      : method(method), url(std::move(url)), headers(std::move(headers))
     {
     }
 
     HttpRequest(
-        HttpMethod method, std::string url, std::map<std::string, std::string> headers, std::vector<uint8_t> body)
-        : method(method), url(std::move(url)), headers(std::move(headers)), body(std::move(body))
+        const HttpMethod method,
+        std::string url,
+        std::map<std::string, std::string> headers,
+        std::vector<uint8_t> body)
+      : method(method), url(std::move(url)), headers(std::move(headers)), body(std::move(body))
     {
     }
 
@@ -81,7 +85,7 @@ namespace cppkit::http
     void setBody(const std::string& text, const std::string& content_type = "text/plain")
     {
       body.assign(text.begin(), text.end());
-      headers["Content-Type"]   = content_type;
+      headers["Content-Type"] = content_type;
       headers["Content-Length"] = std::to_string(body.size());
     }
 
@@ -89,8 +93,7 @@ namespace cppkit::http
 
     void addQueryParam(const std::string& key, const std::string& value)
     {
-      size_t qpos = url.find('?');
-      if (qpos == std::string::npos)
+      if (const size_t size = url.find('?'); size == std::string::npos)
       {
         url += "?" + key + "=" + value;
       }
@@ -100,20 +103,17 @@ namespace cppkit::http
       }
     }
 
-    std::string getPath() const
+    [[nodiscard]] std::string getPath() const
     {
-      size_t qpos = url.find('?');
-      if (qpos == std::string::npos)
+      const size_t size = url.find('?');
+      if (size == std::string::npos)
       {
         return this->url;
       }
-      else
-      {
-        return this->url.substr(0, qpos);
-      }
+      return this->url.substr(0, size);
     }
 
-    std::map<std::string, std::string> getQueryParams() const
+    [[nodiscard]] std::map<std::string, std::string> getQueryParams() const
     {
       size_t qpos = url.find('?');
       if (qpos == std::string::npos)
@@ -129,7 +129,7 @@ namespace cppkit::http
         size_t eqpos = pair.find('=');
         if (eqpos != std::string::npos)
         {
-          std::string key   = pair.substr(0, eqpos);
+          std::string key = pair.substr(0, eqpos);
           std::string value = pair.substr(eqpos + 1);
           query_params[key] = value;
         }
@@ -138,36 +138,9 @@ namespace cppkit::http
     }
 
   private:
-    std::vector<uint8_t> buildRequestData(const std::string& host, const std::string& path, int port, bool https) const;
+    [[nodiscard]] std::vector<uint8_t> buildRequestData(const std::string& host,
+        const std::string& path,
+        int port,
+        bool https) const;
   };
-
-  class HttpResponse
-  {
-    friend HttpClient;
-
-  private:
-    int statusCode = 0;
-    std::map<std::string, std::string> headers;
-    std::vector<uint8_t> body;
-
-  public:
-    HttpResponse() = default;
-
-    HttpResponse(int statusCode, std::map<std::string, std::string> headers, std::vector<uint8_t> body)
-        : statusCode(statusCode), headers(std::move(headers)), body(std::move(body))
-    {
-    }
-
-    int getStatusCode() const;
-
-    std::vector<uint8_t> getBody() const;
-
-    std::map<std::string, std::string> getHeaders() const;
-
-    std::string getHeader(const std::string& key) const;
-
-  private:
-    static HttpResponse parseResponse(const std::vector<uint8_t>& raw);
-  };
-
-}  // namespace cppkit::http
+} // namespace cppkit::http

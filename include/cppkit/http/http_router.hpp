@@ -1,6 +1,7 @@
 #pragma once
 
 #include "http_request.hpp"
+#include "http_respone.hpp"
 #include <string>
 #include <unordered_map>
 #include <functional>
@@ -8,7 +9,7 @@
 
 namespace cppkit::http
 {
-  using HttpHandler = std::function<void(const std::unordered_map<std::string, std::string>&)>;
+  using HttpHandler = std::function<void(const HttpRequest&, HttpResponseWriter&)>;
 
   struct RouteNode
   {
@@ -22,11 +23,15 @@ namespace cppkit::http
   class Router
   {
   public:
-    Router() : root(std::make_unique<RouteNode>()) {}
+    Router() : root(std::make_unique<RouteNode>())
+    {
+    }
 
     void addRoute(HttpMethod method, const std::string& path, const HttpHandler& handler) const;
 
     [[nodiscard]] bool exists(HttpMethod method, const std::string& path) const;
+
+    [[nodiscard]] HttpHandler find(HttpMethod method, const std::string& path) const;
 
   private:
     static RouteNode* match(RouteNode* node,
