@@ -1,12 +1,8 @@
 #include "cppkit/http/http_router.hpp"
 #include <iostream>
 
-void handleTest(const std::unordered_map<std::string, std::string>& params)
+void handleTest(const cppkit::http::HttpRequest& req, cppkit::http::HttpResponseWriter& rep)
 {
-  if (const auto id = params.at("id"); !id.empty())
-  {
-    std::cout << "id=" << id << std::endl;
-  }
   std::cout << "执行test" << std::endl;
 }
 
@@ -20,8 +16,9 @@ int main()
   {
     throw std::runtime_error("路由不存在");
   }
-  const auto handler = router.getHandler(Get, "/test/123");
-  const std::unordered_map<std::string, std::string> params;
-  handler(params);
+  const auto handler = router.find(Get, "/test/123");
+  const HttpRequest request;
+  HttpResponseWriter writer(0);
+  handler(request, writer);
   return 0;
 }
