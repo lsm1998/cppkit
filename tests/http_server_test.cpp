@@ -5,7 +5,7 @@ int main()
 {
   using namespace cppkit::http;
 
-  HttpServer server("localhost", 8080);
+  HttpServer server("localhost", 8888);
 
   server.Get("/hello",
       [](const HttpRequest& req, HttpResponseWriter& res)

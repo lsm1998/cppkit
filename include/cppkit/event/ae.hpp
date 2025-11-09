@@ -5,13 +5,12 @@
 
 namespace cppkit::event
 {
-
   using FileEventCallback = std::function<void(int fd, int mask)>;
   using TimeEventCallback = std::function<int64_t(int64_t id)>;
 
   constexpr int AE_READABLE = 1;
   constexpr int AE_WRITABLE = 2;
-  constexpr int AE_NONE     = 0;
+  constexpr int AE_NONE = 0;
 
   struct FileEvent
   {
@@ -23,7 +22,7 @@ namespace cppkit::event
   struct TimeEvent
   {
     int64_t id;
-    int64_t when_ms;  // epoch ms
+    int64_t when_ms; // epoch ms
     TimeEventCallback cb;
   };
 
@@ -34,21 +33,20 @@ namespace cppkit::event
     ~EventLoop();
 
     // file events
-    bool createFileEvent(int fd, int mask, FileEventCallback cb);
+    bool createFileEvent(int fd, int mask, const FileEventCallback& cb);
     void deleteFileEvent(int fd, int mask);
-    int getFileEvents(int fd) const;
+    [[nodiscard]] int getFileEvents(int fd) const;
 
     // time events
-    int64_t createTimeEvent(int64_t after_ms, TimeEventCallback cb);
-    void deleteTimeEvent(int64_t id);
+    [[nodiscard]] int64_t createTimeEvent(int64_t after_ms, TimeEventCallback cb) const;
+    void deleteTimeEvent(int64_t id) const;
 
     // main loop
     void run();
-    void stop();
+    void stop() const;
 
   private:
     struct Impl;
     Impl* impl_;
   };
-
-}  // namespace cppkit::event
+} // namespace cppkit::event

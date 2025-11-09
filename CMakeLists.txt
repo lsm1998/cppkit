@@ -27,6 +27,7 @@ add_library(cppkit SHARED
         src/event/server.cpp
         include/cppkit/http/http_respone.hpp
         src/http/http_respone.cpp
+        include/cppkit/log/log.hpp
 )
 
 # Specify include directories for the target

@@ -1,4 +1,7 @@
 #include "cppkit/http/http_server.hpp"
+
+#include <iostream>
+
 #include "cppkit/event/server.hpp"
 
 namespace cppkit::http
@@ -13,7 +16,6 @@ namespace cppkit::http
       handleRequest(request, writer);
     });
     this->_server.start();
-    this->_server.stop();
     this->_loop.run();
   }
 
@@ -50,7 +52,14 @@ namespace cppkit::http
 
   void HttpServer::handleRequest(const HttpRequest& request, HttpResponseWriter& writer) const
   {
-    // 获取路由处理器
     const auto handler = _router.find(request.method, request.getPath());
+    if (handler == nullptr)
+    {
+      writer.setStatusCode(HTTP_NOT_FOUND);
+      writer.setHeader("Content-Type", "text/plain");
+      writer.write("404 Not Found");
+      return;
+    }
+    handler(request, writer);
   }
 } // namespace cppkit::http
