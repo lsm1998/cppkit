@@ -27,6 +27,9 @@ add_library(cppkit SHARED
         src/event/server.cpp
         src/http/http_respone.cpp
         src/log/log.cpp
+        src/net/socket.cpp
+        src/net/udp_datagram.cpp
+        src/net/net.cpp
 )
 
 # Specify include directories for the target
