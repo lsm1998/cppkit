@@ -30,6 +30,8 @@ add_library(cppkit SHARED
         src/net/socket.cpp
         src/net/udp_datagram.cpp
         src/net/net.cpp
+        src/crypto/base.cpp
+        src/crypto/md5.cpp
 )
 
 # Specify include directories for the target

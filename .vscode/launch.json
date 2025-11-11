@@ -56,6 +56,14 @@
             "program": "${workspaceFolder}/build/tests/http_router_test",
             "args": [],
             "cwd": "${workspaceFolder}",
+        },
+        {
+            "name": "crypto_test",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/tests/crypto_test",
+            "args": [],
+            "cwd": "${workspaceFolder}",
         }
     ]
 }
