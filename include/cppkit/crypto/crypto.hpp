@@ -2,7 +2,6 @@
 
 #include "base.hpp"
 #include "md5.hpp"
-
-namespace cppkit::crypto
-{
-}
+#include "sha1.hpp"
+#include "sha256.hpp"
+#include "sha512.hpp"

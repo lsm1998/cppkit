@@ -62,6 +62,47 @@ namespace cppkit::crypto
     finalized_ = false;
   }
 
+  std::string SHA1::sha(const std::string& message)
+  {
+    SHA1 sha1;
+    sha1.update(message);
+    return sha1.hexDigest();
+  }
+
+  std::string SHA1::hmac(const std::string& key, const std::string& message)
+  {
+    std::vector<uint8_t> keyBytes(key.begin(), key.end());
+    if (constexpr size_t blockSize = 64; keyBytes.size() > blockSize)
+    {
+      SHA1 sha1;
+      sha1.update(key);
+      auto hashedKey = sha1.digest();
+      keyBytes = std::vector<uint8_t>(hashedKey.begin(), hashedKey.end());
+    }
+    constexpr size_t blockSize = 64;
+    keyBytes.resize(blockSize, 0x00);
+    std::vector<uint8_t> oKeyPad(blockSize);
+    std::vector<uint8_t> iKeyPad(blockSize);
+    for (size_t i = 0; i < blockSize; ++i)
+    {
+      oKeyPad[i] = keyBytes[i] ^ 0x5c;
+      iKeyPad[i] = keyBytes[i] ^ 0x36;
+    }
+
+    SHA1 innerSha1;
+    innerSha1.update(iKeyPad.data(), iKeyPad.size());
+    innerSha1.update(reinterpret_cast<const uint8_t*>(message.data()), message.size());
+    auto innerHash = innerSha1.digest();
+    SHA1 outerSha1;
+    outerSha1.update(oKeyPad.data(), oKeyPad.size());
+    outerSha1.update(innerHash.data(), innerHash.size());
+    auto hmacHash = outerSha1.digest();
+    std::ostringstream oss;
+    for (const auto b : hmacHash)
+      oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
+    return oss.str();
+  }
+
   void SHA1::finalize()
   {
     if (finalized_)

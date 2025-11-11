@@ -16,6 +16,50 @@ namespace cppkit::crypto
                                      0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
                                      0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
 
+  void SHA256::update(const uint8_t* data, size_t len)
+  {
+    while (len > 0)
+    {
+      const size_t toCopy = std::min(len, 64 - bufferLen_);
+      std::memcpy(buffer_ + bufferLen_, data, toCopy);
+      bufferLen_ += toCopy;
+      data += toCopy;
+      len -= toCopy;
+
+      if (bufferLen_ == 64)
+      {
+        transform(buffer_);
+        totalBits_ += 512;
+        bufferLen_ = 0;
+      }
+    }
+  }
+
+  void SHA256::update(const std::string& str) { update(reinterpret_cast<const uint8_t*>(str.data()), str.size()); }
+
+  std::array<uint8_t, 32> SHA256::digest()
+  {
+    finalize();
+    std::array<uint8_t, 32> out{};
+    for (int i = 0; i < 8; ++i)
+    {
+      out[i * 4] = (state_[i] >> 24) & 0xFF;
+      out[i * 4 + 1] = (state_[i] >> 16) & 0xFF;
+      out[i * 4 + 2] = (state_[i] >> 8) & 0xFF;
+      out[i * 4 + 3] = state_[i] & 0xFF;
+    }
+    return out;
+  }
+
+  std::string SHA256::hexDigest()
+  {
+    const auto d = digest();
+    std::ostringstream oss;
+    for (const auto b : d)
+      oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
+    return oss.str();
+  }
+
   void SHA256::reset()
   {
     state_[0] = 0x6a09e667;
@@ -30,6 +74,52 @@ namespace cppkit::crypto
     bufferLen_ = 0;
     totalBits_ = 0;
     finalized_ = false;
+  }
+
+  std::string SHA256::sha(const std::string& message)
+  {
+    SHA256 sha256;
+    sha256.update(message);
+    return sha256.hexDigest();
+  }
+
+  std::string SHA256::hmac(const std::string& key, const std::string& message)
+  {
+    constexpr size_t blockSize = 64;
+    std::vector<uint8_t> keyBytes(key.begin(), key.end());
+
+    if (keyBytes.size() > blockSize)
+    {
+      SHA256 sha256;
+      sha256.update(keyBytes.data(), keyBytes.size());
+      auto hashedKey = sha256.digest();
+      keyBytes = std::vector<uint8_t>(hashedKey.begin(), hashedKey.end());
+    }
+
+    keyBytes.resize(blockSize, 0x00);
+
+    std::vector<uint8_t> oKeyPad(blockSize);
+    std::vector<uint8_t> iKeyPad(blockSize);
+    for (size_t i = 0; i < blockSize; ++i)
+    {
+      oKeyPad[i] = keyBytes[i] ^ 0x5c;
+      iKeyPad[i] = keyBytes[i] ^ 0x36;
+    }
+
+    SHA256 innerSha256;
+    innerSha256.update(iKeyPad.data(), iKeyPad.size());
+    innerSha256.update(reinterpret_cast<const uint8_t*>(message.data()), message.size());
+    auto innerHash = innerSha256.digest();
+
+    SHA256 outerSha256;
+    outerSha256.update(oKeyPad.data(), oKeyPad.size());
+    outerSha256.update(innerHash.data(), innerHash.size());
+    auto hmacHash = outerSha256.digest();
+
+    std::ostringstream oss;
+    for (const auto b : hmacHash)
+      oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
+    return oss.str();
   }
 
   void SHA256::finalize()

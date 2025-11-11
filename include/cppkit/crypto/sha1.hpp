@@ -24,6 +24,10 @@ namespace cppkit::crypto
 
     void reset();
 
+    static std::string sha(const std::string& message);
+
+    static std::string hmac(const std::string& key, const std::string& message);
+
   private:
     void finalize();
 
