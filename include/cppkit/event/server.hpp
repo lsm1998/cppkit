@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <functional>
 #include <string>
-#include <sys/_types/_ssize_t.h>
 #include <vector>
 
 namespace cppkit::event

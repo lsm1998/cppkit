@@ -6,6 +6,8 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <cstring>
+#include <stdexcept>
 
 namespace cppkit::http
 {

@@ -5,6 +5,8 @@
 #include <sys/socket.h>
 #include <unordered_map>
 #include <vector>
+#include <memory>
+#include <ranges>
 
 int main()
 {

@@ -6,6 +6,7 @@
 #include <vector>
 #include <fstream>
 #include <functional>
+#include <mutex>
 
 namespace cppkit::io
 {

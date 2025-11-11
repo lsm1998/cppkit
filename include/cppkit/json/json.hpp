@@ -6,6 +6,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <vector>
+#include <variant>
+#include <functional>
 
 namespace cppkit::json
 {

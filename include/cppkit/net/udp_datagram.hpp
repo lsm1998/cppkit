@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <unordered_map>
 #include <unistd.h>
+#include <cstring>
 
 namespace cppkit::net
 {
