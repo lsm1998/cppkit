@@ -1,8 +1,40 @@
-//
-// Created by 刘时明 on 2025/11/12.
-//
+#pragma once
 
-#ifndef CPPKIT_SHA1_H
-#define CPPKIT_SHA1_H
+#include <array>
+#include <cstdint>
+#include <cstring>
+#include <string>
+#include <sstream>
+#include <iomanip>
 
-#endif //CPPKIT_SHA1_H
+namespace cppkit::crypto
+{
+  class SHA1
+  {
+  public:
+    SHA1() { reset(); }
+
+    void update(const uint8_t* data, size_t len);
+
+    void update(const std::string& str);
+
+    std::array<uint8_t, 20> digest();
+
+    std::string hexDigest();
+
+    void reset();
+
+  private:
+    void finalize();
+
+    void transform(const uint8_t block[64]);
+
+    static uint32_t leftRotate(uint32_t x, uint32_t n);
+
+    uint32_t state_[5]{};
+    uint8_t buffer_[64]{};
+    size_t bufferLen_ = 0;
+    uint64_t totalBits_ = 0;
+    bool finalized_ = false;
+  };
+} // namespace cppkit::crypto

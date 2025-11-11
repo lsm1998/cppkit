@@ -32,6 +32,9 @@ add_library(cppkit SHARED
         src/net/net.cpp
         src/crypto/base.cpp
         src/crypto/md5.cpp
+        src/crypto/sha1.cpp
+        src/crypto/sha256.cpp
+        src/crypto/sha512.cpp
 )
 
 # Specify include directories for the target

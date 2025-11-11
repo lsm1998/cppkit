@@ -1,3 +1,136 @@
-//
-// Created by 刘时明 on 2025/11/12.
-//
+#include "cppkit/crypto/sha1.hpp"
+
+namespace cppkit::crypto
+{
+  void SHA1::update(const uint8_t* data, size_t len)
+  {
+    while (len > 0)
+    {
+      const size_t toCopy = std::min(len, 64 - bufferLen_);
+      std::memcpy(buffer_ + bufferLen_, data, toCopy);
+      bufferLen_ += toCopy;
+      data += toCopy;
+      len -= toCopy;
+
+      if (bufferLen_ == 64)
+      {
+        transform(buffer_);
+        totalBits_ += 512;
+        bufferLen_ = 0;
+      }
+    }
+  }
+
+  void SHA1::update(const std::string& str)
+  {
+    update(reinterpret_cast<const uint8_t*>(str.data()), str.size());
+  }
+
+  std::array<uint8_t, 20> SHA1::digest()
+  {
+    finalize();
+    std::array<uint8_t, 20> out{};
+    for (int i = 0; i < 5; ++i)
+    {
+      out[i * 4] = (state_[i] >> 24) & 0xFF;
+      out[i * 4 + 1] = (state_[i] >> 16) & 0xFF;
+      out[i * 4 + 2] = (state_[i] >> 8) & 0xFF;
+      out[i * 4 + 3] = state_[i] & 0xFF;
+    }
+    return out;
+  }
+
+  std::string SHA1::hexDigest()
+  {
+    const auto d = digest();
+    std::ostringstream oss;
+    for (const auto b : d)
+      oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
+    return oss.str();
+  }
+
+  void SHA1::reset()
+  {
+    state_[0] = 0x67452301;
+    state_[1] = 0xEFCDAB89;
+    state_[2] = 0x98BADCFE;
+    state_[3] = 0x10325476;
+    state_[4] = 0xC3D2E1F0;
+
+    bufferLen_ = 0;
+    totalBits_ = 0;
+    finalized_ = false;
+  }
+
+  void SHA1::finalize()
+  {
+    if (finalized_)
+      return;
+    totalBits_ += bufferLen_ * 8;
+
+    constexpr uint8_t pad[64] = {0x80};
+    const size_t padLen = (bufferLen_ < 56) ? (56 - bufferLen_) : (120 - bufferLen_);
+    update(pad, padLen);
+
+    uint8_t lengthBytes[8];
+    for (int i = 0; i < 8; ++i)
+      lengthBytes[7 - i] = (totalBits_ >> (i * 8)) & 0xFF;
+    update(lengthBytes, 8);
+
+    finalized_ = true;
+  }
+
+  void SHA1::transform(const uint8_t block[64])
+  {
+    uint32_t w[80];
+    for (int i = 0; i < 16; ++i)
+      w[i] = (block[i * 4] << 24) | (block[i * 4 + 1] << 16) | (block[i * 4 + 2] << 8) | block[i * 4 + 3];
+    for (int i = 16; i < 80; ++i)
+      w[i] = leftRotate(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
+
+    uint32_t a = state_[0], b = state_[1], c = state_[2], d = state_[3], e = state_[4];
+
+    for (int i = 0; i < 80; ++i)
+    {
+      uint32_t f, k;
+      if (i < 20)
+      {
+        f = (b & c) | ((~b) & d);
+        k = 0x5A827999;
+      }
+      else if (i < 40)
+      {
+        f = b ^ c ^ d;
+        k = 0x6ED9EBA1;
+      }
+      else if (i < 60)
+      {
+        f = (b & c) | (b & d) | (c & d);
+        k = 0x8F1BBCDC;
+      }
+      else
+      {
+        f = b ^ c ^ d;
+        k = 0xCA62C1D6;
+      }
+
+      const uint32_t temp = leftRotate(a, 5) + f + e + k + w[i];
+      e = d;
+      d = c;
+      c = leftRotate(b, 30);
+      b = a;
+      a = temp;
+    }
+
+    state_[0] += a;
+    state_[1] += b;
+    state_[2] += c;
+    state_[3] += d;
+    state_[4] += e;
+  }
+
+  uint32_t SHA1::leftRotate(const uint32_t x, const uint32_t n)
+  {
+    return (x << n) | (x >> (32 - n));
+  }
+}
