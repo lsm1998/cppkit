@@ -2,6 +2,12 @@
 
 #include <cstdint>
 #include <functional>
+#include <atomic>
+#include <chrono>
+#include <stdexcept>
+#include <cstring>
+#include <algorithm>
+#include <ranges>
 
 namespace cppkit::event
 {

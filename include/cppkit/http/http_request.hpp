@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <unordered_map>
 
 namespace cppkit::http
 {

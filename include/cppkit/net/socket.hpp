@@ -9,6 +9,7 @@
 #include <string>
 #include <sys/socket.h>
 #include <fcntl.h>
+#include <stdexcept>
 
 namespace cppkit::net
 {
