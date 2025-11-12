@@ -2,6 +2,7 @@
 #include <vector>
 #include <iomanip>
 #include <sstream>
+#include <cstring>
 
 namespace cppkit::crypto
 {

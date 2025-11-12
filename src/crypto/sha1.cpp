@@ -1,4 +1,5 @@
 #include "cppkit/crypto/sha1.hpp"
+#include <vector>
 
 namespace cppkit::crypto
 {

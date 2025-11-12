@@ -35,6 +35,7 @@ add_library(cppkit SHARED
         src/crypto/sha1.cpp
         src/crypto/sha256.cpp
         src/crypto/sha512.cpp
+        src/crypto/aes.cpp
 )
 
 # Specify include directories for the target

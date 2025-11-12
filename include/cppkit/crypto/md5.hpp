@@ -2,6 +2,7 @@
 
 #include "base.hpp"
 #include <string>
+#include <array>
 
 namespace cppkit::crypto
 {

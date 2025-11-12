@@ -14,6 +14,8 @@ namespace cppkit::net
 
   class UdpDatagram;
 
+  class WebSocket;
+
   struct AddrInfoResult
   {
     addrinfo* res{nullptr};
