@@ -1,5 +1,4 @@
 #include "cppkit/concurrency/thread_pool.hpp"
-#include "thread_pool.hpp"
 
 namespace cppkit::concurrency
 {
