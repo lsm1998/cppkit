@@ -18,32 +18,7 @@ namespace cppkit::concurrency
   class ThreadPool
   {
   public:
-    explicit ThreadPool(size_t threadCount = std::thread::hardware_concurrency())
-    {
-      if (threadCount == 0)
-        threadCount = 1;
-      stop.store(false, std::memory_order_release);
-      for (size_t i = 0; i < threadCount; ++i)
-      {
-        workers.emplace_back([this]
-        {
-          for (;;)
-          {
-            std::function<void()> task;
-            {
-              std::unique_lock<std::mutex> lock(this->mtx);
-              this->cv.wait(lock,
-                  [this] { return this->stop.load(std::memory_order_acquire) || !this->tasks.empty(); });
-              if (this->stop.load(std::memory_order_acquire) && this->tasks.empty())
-                return;
-              task = std::move(this->tasks.front());
-              this->tasks.pop();
-            }
-            task();
-          }
-        });
-      }
-    }
+    explicit ThreadPool(size_t threadCount = std::thread::hardware_concurrency());
 
     ~ThreadPool()
     {
@@ -57,18 +32,16 @@ namespace cppkit::concurrency
     }
 
     ThreadPool(const ThreadPool&) = delete;
+
     ThreadPool& operator=(const ThreadPool&) = delete;
 
     template <class F, class... Args>
-    auto enqueue(F&& f,
-        Args&&... args)
-      -> std::future<std::invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>
+    auto enqueue(F&& f, Args&&... args) -> std::future<std::invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>>
     {
       using return_type = std::invoke_result_t<std::decay_t<F>, std::decay_t<Args>...>;
 
       auto taskPtr = std::make_shared<std::packaged_task<return_type()>>(
-          std::bind(std::forward<F>(f), std::forward<Args>(args)...)
-          );
+          std::bind(std::forward<F>(f), std::forward<Args>(args)...));
 
       std::future<return_type> res = taskPtr->get_future();
 
@@ -82,22 +55,11 @@ namespace cppkit::concurrency
       return res;
     }
 
-    size_t worker_count() const noexcept
-    {
-      return workers.size();
-    }
+    size_t workerCount() const noexcept;
 
-    void shutdown()
-    {
-      stop.store(true, std::memory_order_release);
-      cv.notify_all();
-      for (std::thread& worker : workers)
-      {
-        if (worker.joinable())
-          worker.join();
-      }
-      workers.clear();
-    }
+    void shutdown();
+
+    void shutdownNow();
 
   private:
     std::vector<std::thread> workers;
@@ -107,4 +69,4 @@ namespace cppkit::concurrency
     std::condition_variable cv;
     std::atomic<bool> stop{false};
   };
-} // namespace utils
+} // namespace cppkit::concurrency

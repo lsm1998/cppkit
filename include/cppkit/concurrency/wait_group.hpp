@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <mutex>
+#include <condition_variable>
 
 namespace cppkit::concurrency
 {
