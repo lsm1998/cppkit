@@ -18,7 +18,8 @@ namespace cppkit::concurrency
               {
                 std::unique_lock<std::mutex> lock(this->mtx);
                 this->cv.wait(
-                    lock, [this] { return this->stop.load(std::memory_order_acquire) || !this->tasks.empty(); });
+                    lock,
+                    [this] { return this->stop.load(std::memory_order_acquire) || !this->tasks.empty(); });
                 if (this->stop.load(std::memory_order_acquire) && this->tasks.empty())
                   return;
                 task = std::move(this->tasks.front());
@@ -30,12 +31,23 @@ namespace cppkit::concurrency
     }
   }
 
-  size_t concurrency::ThreadPool::workerCount() const noexcept
+  ThreadPool::~ThreadPool()
+  {
+    stop.store(true, std::memory_order_release);
+    cv.notify_all();
+    for (std::thread& worker : workers)
+    {
+      if (worker.joinable())
+        worker.join();
+    }
+  }
+
+  size_t ThreadPool::workerCount() const noexcept
   {
     return workers.size();
   }
 
-  void concurrency::ThreadPool::shutdown()
+  void ThreadPool::shutdown()
   {
     stop.store(true, std::memory_order_release);
     cv.notify_all();
@@ -47,7 +59,7 @@ namespace cppkit::concurrency
     workers.clear();
   }
 
-  void concurrency::ThreadPool::shutdownNow()
+  void ThreadPool::shutdownNow()
   {
     stop.store(true, std::memory_order_release);
     {
