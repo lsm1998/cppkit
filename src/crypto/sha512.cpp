@@ -1,4 +1,5 @@
 #include "cppkit/crypto/sha512.hpp"
+#include <vector>
 
 namespace cppkit::crypto
 {

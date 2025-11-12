@@ -27,5 +27,11 @@ int main()
   cppkit::crypto::SHA512 sha512;
   sha512.update(str);
   std::cout << sha512.hexDigest() << std::endl;
+
+  // 随机生成IV
+  std::string iv(16, '\0');
+  for(auto& c : iv)
+    c = static_cast<char>(rand() % 256);
+  cppkit::crypto::Example("1234567890abcdef", iv, "这是一段文本-hello");
   return 0;
 }
