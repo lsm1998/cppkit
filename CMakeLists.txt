@@ -35,6 +35,8 @@ add_library(cppkit SHARED
         src/crypto/sha1.cpp
         src/crypto/sha256.cpp
         src/crypto/sha512.cpp
+        src/concurrency/wait_group.cpp
+        src/concurrency/thread_pool.cpp
 )
 
 # Specify include directories for the target
