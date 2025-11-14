@@ -6,10 +6,9 @@
 
 void readWorker(cppkit::concurrency::ConcurrentHashMap<int, std::string>& map)
 {
-  int key = cppkit::Random::nextInt(5);
+  const int key = cppkit::Random::nextInt(5);
 
-  auto item = map.get(key);
-  if (item.has_value())
+  if (const auto item = map.get(key); item.has_value())
   {
     std::cout << key << " -> " << item.value() << std::endl;
   }
@@ -17,8 +16,8 @@ void readWorker(cppkit::concurrency::ConcurrentHashMap<int, std::string>& map)
 
 void writeWorker(cppkit::concurrency::ConcurrentHashMap<int, std::string>& map)
 {
-  int key = cppkit::Random::nextInt(5);
-  std::string value = std::to_string(key);
+  const int key = cppkit::Random::nextInt(5);
+  const std::string value = std::to_string(key);
   map.put(key, value);
 }
 
@@ -26,7 +25,7 @@ int main()
 {
   cppkit::concurrency::ConcurrentHashMap<int, std::string> map;
 
-  int size = 10;
+  constexpr int size = 10;
 
   // 多线程并发读写
   std::thread readGroup[size];

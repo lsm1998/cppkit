@@ -16,18 +16,20 @@ namespace cppkit::concurrency
   {
     struct Node
     {
-      K key;                            // 键
-      V value;                          // 值
+      K key; // 键
+      V value; // 值
       std::atomic<Node*> next{nullptr}; // 原子指针用于无锁读取
-      Node* next_plain{nullptr};        // 用于链表复制时的普通指针
+      Node* next_plain{nullptr}; // 用于链表复制时的普通指针
 
-      Node(const K& k, const V& v, Node* n = nullptr) : key(k), value(v), next(n), next_plain(nullptr) {}
+      Node(const K& k, const V& v, Node* n = nullptr) : key(k), value(v), next(n), next_plain(nullptr)
+      {
+      }
     };
 
     struct Bucket
     {
-      std::atomic<Node*> head{nullptr};  // 链表头指针
-      mutable std::mutex mutex;          // 保护链表修改的互斥锁
+      std::atomic<Node*> head{nullptr}; // 链表头指针
+      mutable std::mutex mutex; // 保护链表修改的互斥锁
       std::atomic<bool> migrated{false}; // 标记是否已迁移
     };
 
@@ -35,7 +37,10 @@ namespace cppkit::concurrency
     {
       std::vector<Bucket> buckets;
       std::atomic<size_t> size{0};
-      explicit Table(size_t n) : buckets(n) {}
+
+      explicit Table(size_t n) : buckets(n)
+      {
+      }
     };
 
     struct RetiredNode
@@ -43,6 +48,7 @@ namespace cppkit::concurrency
       Node* node;
       size_t retire_epoch;
     };
+
     struct ThreadEpoch
     {
       std::atomic<size_t> epoch{0};
@@ -56,8 +62,7 @@ namespace cppkit::concurrency
     ThreadEpoch* get_thread_epoch()
     {
       thread_local ThreadEpoch local;
-      thread_local bool registered = false;
-      if (!registered)
+      if (thread_local bool registered = false; !registered)
       {
         std::lock_guard<std::mutex> lg(threads_mutex_);
         threads_.push_back(&local);
@@ -91,14 +96,14 @@ namespace cppkit::concurrency
     void try_reclaim(ThreadEpoch* te)
     {
       global_epoch_.fetch_add(1, std::memory_order_acq_rel);
-      size_t safe_epoch = global_epoch_.load(std::memory_order_acquire) - 1;
+      const size_t safe_epoch = global_epoch_.load(std::memory_order_acquire) - 1;
 
       size_t min_epoch = SIZE_MAX;
       {
         std::lock_guard<std::mutex> lg(threads_mutex_);
         for (auto t : threads_)
         {
-          size_t ev = t->epoch.load(std::memory_order_acquire);
+          const size_t ev = t->epoch.load(std::memory_order_acquire);
           if (ev == 0)
             continue;
           if (ev < min_epoch)
@@ -119,17 +124,21 @@ namespace cppkit::concurrency
       }
       rvec.resize(i);
     }
-    // ------------ end epoch reclamation ------------
 
-    std::shared_ptr<Table> table_;
-    std::shared_ptr<Table> rehash_table_;
-    std::atomic<size_t> rehash_index_{0};
-    mutable std::mutex table_mutex_;
-    static constexpr double LOAD_FACTOR = 0.75;
-    static constexpr size_t MIGRATE_BATCH = 1;
+    std::shared_ptr<Table> table_; // 当前使用的表
+
+    std::shared_ptr<Table> rehash_table_; // 正在迁移到的新表
+
+    std::atomic<size_t> rehash_index_{0}; // 迁移进度索引
+
+    mutable std::mutex table_mutex_; // 保护表迁移的互斥锁
+
+    static constexpr double LOAD_FACTOR = 0.75; // 负载因子阈值
+
+    static constexpr size_t MIGRATE_BATCH = 1; // 每次帮助迁移的桶数量
 
   public:
-    explicit ConcurrentHashMap(size_t initialBuckets = 16) { table_ = std::make_shared<Table>(initialBuckets); }
+    explicit ConcurrentHashMap(const size_t initialBuckets = 16) { table_ = std::make_shared<Table>(initialBuckets); }
 
     ~ConcurrentHashMap()
     {
@@ -146,8 +155,7 @@ namespace cppkit::concurrency
       }
       if (rehash_table_)
       {
-        auto r = rehash_table_;
-        for (auto& b : r->buckets)
+        for (auto r = rehash_table_; auto& b : r->buckets)
         {
           Node* n = b.head.load(std::memory_order_acquire);
           while (n)
@@ -256,20 +264,17 @@ namespace cppkit::concurrency
           retire_list(head);
           return;
         }
-        else
+        Node* oldHead = head;
+        Node* newNode = new Node(key, value, oldHead);
+        if (b.head.compare_exchange_weak(oldHead, newNode, std::memory_order_release, std::memory_order_relaxed))
         {
-          Node* oldHead = head;
-          Node* newNode = new Node(key, value, oldHead);
-          if (b.head.compare_exchange_weak(oldHead, newNode, std::memory_order_release, std::memory_order_relaxed))
-          {
-            t->size.fetch_add(1, std::memory_order_relaxed);
-            if ((double) t->size.load(std::memory_order_relaxed) / t->buckets.size() > LOAD_FACTOR)
-              startRehash();
-            return;
-          }
-          delete newNode;
-          std::this_thread::yield();
+          t->size.fetch_add(1, std::memory_order_relaxed);
+          if (static_cast<double>(t->size.load(std::memory_order_relaxed)) / t->buckets.size() > LOAD_FACTOR)
+            startRehash();
+          return;
         }
+        delete newNode;
+        std::this_thread::yield();
       }
     }
 
@@ -303,12 +308,12 @@ namespace cppkit::concurrency
       }
       if (removed)
       {
-        Node* cur = newHead;
-        while (cur)
+        Node* node = newHead;
+        while (node)
         {
-          Node* next = cur->next_plain;
-          cur->next.store(next, std::memory_order_release);
-          cur = next;
+          Node* next = node->next_plain;
+          node->next.store(next, std::memory_order_release);
+          node = next;
         }
         b.head.store(newHead, std::memory_order_release);
         t->size.fetch_sub(1, std::memory_order_relaxed);
@@ -370,7 +375,10 @@ namespace cppkit::concurrency
                   Node* oldHead = nb.head.load(std::memory_order_acquire);
                   Node* copy = new Node(n->key, n->value, oldHead);
                   while (!nb.head.compare_exchange_weak(
-                      oldHead, copy, std::memory_order_release, std::memory_order_relaxed))
+                      oldHead,
+                      copy,
+                      std::memory_order_release,
+                      std::memory_order_relaxed))
                   {
                   }
                   newt->size.fetch_add(1, std::memory_order_relaxed);
@@ -416,7 +424,6 @@ namespace cppkit::concurrency
     }
 
   public:
-    // ---------------- iterable ----------------
     struct Entry
     {
       K key;
@@ -429,20 +436,26 @@ namespace cppkit::concurrency
       size_t pos_ = 0;
 
     public:
-      Iterator(std::shared_ptr<std::vector<Entry>> snap, size_t pos = 0) : snapshot_(snap), pos_(pos) {}
+      explicit Iterator(std::shared_ptr<std::vector<Entry>> snap, const size_t pos = 0) : snapshot_(snap), pos_(pos)
+      {
+      }
+
       Entry& operator*() { return (*snapshot_)[pos_]; }
       Entry* operator->() { return &(*snapshot_)[pos_]; }
+
       Iterator& operator++()
       {
         ++pos_;
         return *this;
       }
+
       Iterator operator++(int)
       {
         Iterator tmp = *this;
         ++(*this);
         return tmp;
       }
+
       bool operator==(const Iterator& o) const { return snapshot_ == o.snapshot_ && pos_ == o.pos_; }
       bool operator!=(const Iterator& o) const { return !(*this == o); }
     };
@@ -452,7 +465,10 @@ namespace cppkit::concurrency
       std::shared_ptr<std::vector<Entry>> snap_;
 
     public:
-      explicit Iterable(std::shared_ptr<std::vector<Entry>> snap) : snap_(snap) {}
+      explicit Iterable(std::shared_ptr<std::vector<Entry>> snap) : snap_(snap)
+      {
+      }
+
       Iterator begin() { return Iterator(snap_, 0); }
       Iterator end() { return Iterator(snap_, snap_->size()); }
     };
