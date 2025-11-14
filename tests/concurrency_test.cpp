@@ -42,7 +42,7 @@ int main()
     // map.put(i, key);
   }
 
-  sleep(10);
+  sleep(3);
   std::cout << "Map size: " << map.size() << std::endl;
 
   for (auto iterable = map.iterable(); auto& [key, value] : iterable)
