@@ -1,326 +1,347 @@
 #pragma once
 
-#include <vector>
-#include <mutex>
-#include <optional>
-#include <memory>
 #include <atomic>
 #include <functional>
+#include <memory>
+#include <optional>
 #include <thread>
+#include <vector>
+#include <mutex>
+#include <cassert>
 
 namespace cppkit::concurrency
 {
-
   template <typename K, typename V>
   class ConcurrentHashMap
   {
     struct Node
     {
-      K key;                      // 键
-      V value;                    // 值
-      std::shared_ptr<Node> next; // 下一个节点
+      K key;                            // 键
+      V value;                          // 值
+      std::atomic<Node*> next{nullptr}; // 原子指针用于无锁读取
+      Node* next_plain{nullptr};        // 用于链表复制时的普通指针
 
-      Node(K k, V v, std::shared_ptr<Node> n = nullptr) : key(std::move(k)), value(std::move(v)), next(std::move(n)) {}
+      Node(const K& k, const V& v, Node* n = nullptr) : key(k), value(v), next(n), next_plain(nullptr) {}
     };
 
     struct Bucket
     {
-      // 链表头节点
-      std::shared_ptr<Node> head;        // 头节点
-      mutable std::mutex mutex;          // 保护写入
-      std::atomic<bool> migrated{false}; // 是否已迁移到新表
+      std::atomic<Node*> head{nullptr};  // 链表头指针
+      mutable std::mutex mutex;          // 保护链表修改的互斥锁
+      std::atomic<bool> migrated{false}; // 标记是否已迁移
     };
 
     struct Table
     {
-      std::vector<Bucket> buckets; // 桶数组
-      std::atomic<size_t> size{0}; // 当前元素数量
-
+      std::vector<Bucket> buckets;
+      std::atomic<size_t> size{0};
       explicit Table(size_t n) : buckets(n) {}
     };
 
-    std::shared_ptr<Table> table_;        // 当前哈希表
-    std::shared_ptr<Table> rehash_table_; // 重新哈希表（调整大小时使用的新表）
+    struct RetiredNode
+    {
+      Node* node;
+      size_t retire_epoch;
+    };
+    struct ThreadEpoch
+    {
+      std::atomic<size_t> epoch{0};
+      std::vector<RetiredNode> retired;
+    };
 
-    std::atomic<size_t> rehash_index_{0}; // 重新哈希进度索引
+    std::atomic<size_t> global_epoch_{1};
+    std::mutex threads_mutex_;
+    std::vector<ThreadEpoch*> threads_;
 
-    mutable std::mutex table_mutex_; // 保护启动/完成重新哈希和交换
+    ThreadEpoch* get_thread_epoch()
+    {
+      thread_local ThreadEpoch local;
+      thread_local bool registered = false;
+      if (!registered)
+      {
+        std::lock_guard<std::mutex> lg(threads_mutex_);
+        threads_.push_back(&local);
+        registered = true;
+      }
+      return &local;
+    }
+
+    void enter_epoch()
+    {
+      ThreadEpoch* te = get_thread_epoch();
+      size_t e = global_epoch_.load(std::memory_order_acquire);
+      te->epoch.store(e, std::memory_order_release);
+    }
+
+    void leave_epoch()
+    {
+      ThreadEpoch* te = get_thread_epoch();
+      te->epoch.store(0, std::memory_order_release);
+    }
+
+    void retire_node(Node* n)
+    {
+      ThreadEpoch* te = get_thread_epoch();
+      size_t e = global_epoch_.load(std::memory_order_acquire);
+      te->retired.push_back({n, e});
+      if (te->retired.size() >= 64)
+        try_reclaim(te);
+    }
+
+    void try_reclaim(ThreadEpoch* te)
+    {
+      global_epoch_.fetch_add(1, std::memory_order_acq_rel);
+      size_t safe_epoch = global_epoch_.load(std::memory_order_acquire) - 1;
+
+      size_t min_epoch = SIZE_MAX;
+      {
+        std::lock_guard<std::mutex> lg(threads_mutex_);
+        for (auto t : threads_)
+        {
+          size_t ev = t->epoch.load(std::memory_order_acquire);
+          if (ev == 0)
+            continue;
+          if (ev < min_epoch)
+            min_epoch = ev;
+        }
+      }
+      if (min_epoch == SIZE_MAX)
+        min_epoch = safe_epoch;
+
+      auto& rvec = te->retired;
+      size_t i = 0;
+      for (size_t j = 0; j < rvec.size(); ++j)
+      {
+        if (rvec[j].retire_epoch < min_epoch)
+          delete rvec[j].node;
+        else
+          rvec[i++] = rvec[j];
+      }
+      rvec.resize(i);
+    }
+    // ------------ end epoch reclamation ------------
+
+    std::shared_ptr<Table> table_;
+    std::shared_ptr<Table> rehash_table_;
+    std::atomic<size_t> rehash_index_{0};
+    mutable std::mutex table_mutex_;
     static constexpr double LOAD_FACTOR = 0.75;
-    static constexpr size_t MIGRATE_BATCH = 1; // 每次帮助调用迁移多少个桶
+    static constexpr size_t MIGRATE_BATCH = 1;
 
   public:
-    explicit ConcurrentHashMap(const size_t initialBuckets = 16) { table_ = std::make_shared<Table>(initialBuckets); }
+    explicit ConcurrentHashMap(size_t initialBuckets = 16) { table_ = std::make_shared<Table>(initialBuckets); }
 
-    // 读取操作无需锁定桶，使用原子加载头节点并遍历链表
-    std::optional<V> get(const K& key)
+    ~ConcurrentHashMap()
     {
-      helpMigrateSome();
-
-      while (true)
+      auto t = table_;
+      for (auto& b : t->buckets)
       {
-        auto t = table_;
-        const size_t idx = bucketIndex(t, key);
-        Bucket& bucket = t->buckets[idx];
-
-        // 快路径：原子加载头节点，无需加锁
-        std::shared_ptr<Node> node = std::atomic_load(&bucket.head);
-        // 如果桶已迁移，重试（将使用新表）
-        if (bucket.migrated.load(std::memory_order_acquire))
+        Node* n = b.head.load(std::memory_order_acquire);
+        while (n)
         {
-          helpMigrateSome();
-          continue;
+          Node* next = n->next.load(std::memory_order_acquire);
+          delete n;
+          n = next;
         }
-
-        for (; node; node = std::atomic_load(&node->next))
-        {
-          if (node->key == key)
-            return node->value;
-        }
-
-        // 未找到，检查新表
+      }
+      if (rehash_table_)
+      {
         auto r = rehash_table_;
-        if (r)
+        for (auto& b : r->buckets)
         {
-          const size_t idx2 = std::hash<K>{}(key) % r->buckets.size();
-          Bucket& nb = r->buckets[idx2];
-          std::shared_ptr<Node> nnode = std::atomic_load(&nb.head);
-          for (; nnode; nnode = std::atomic_load(&nnode->next))
-            if (nnode->key == key)
-              return nnode->value;
+          Node* n = b.head.load(std::memory_order_acquire);
+          while (n)
+          {
+            Node* next = n->next.load(std::memory_order_acquire);
+            delete n;
+            n = next;
+          }
         }
-
-        return std::nullopt;
       }
     }
 
-    // 写操作获取桶的互斥锁，但使用 atomic_store 发布新的头节点，以便读取者可以无锁遍历
+    std::optional<V> get(const K& key)
+    {
+      enter_epoch();
+      auto t = table_;
+      size_t idx = bucketIndex(t, key);
+      Node* n = t->buckets[idx].head.load(std::memory_order_acquire);
+      while (n)
+      {
+        if (n->key == key)
+        {
+          V val = n->value;
+          leave_epoch();
+          return val;
+        }
+        n = n->next.load(std::memory_order_acquire);
+      }
+
+      if (rehash_table_)
+      {
+        auto r = rehash_table_;
+        size_t idx2 = std::hash<K>{}(key) % r->buckets.size();
+        n = r->buckets[idx2].head.load(std::memory_order_acquire);
+        while (n)
+        {
+          if (n->key == key)
+          {
+            V val = n->value;
+            leave_epoch();
+            return val;
+          }
+          n = n->next.load(std::memory_order_acquire);
+        }
+      }
+      leave_epoch();
+      return std::nullopt;
+    }
+
     void put(const K& key, const V& value)
     {
       helpMigrateSome();
 
       while (true)
       {
-        auto t = table_; // 当前表的快照
-        const size_t idx = bucketIndex(t, key);
-        Bucket& bucket = t->buckets[idx];
+        auto t = table_;
+        size_t idx = bucketIndex(t, key);
+        Bucket& b = t->buckets[idx];
 
-        // 如果这个桶已经迁移，重试使用新表
-        if (bucket.migrated.load(std::memory_order_acquire))
+        Node* head = b.head.load(std::memory_order_acquire);
+        Node* n = head;
+        bool found = false;
+        while (n)
         {
-          helpMigrateSome();
-          continue;
+          if (n->key == key)
+          {
+            found = true;
+            break;
+          }
+          n = n->next.load(std::memory_order_acquire);
         }
 
+        if (found)
         {
-          std::unique_lock lock(bucket.mutex);
-
-          // 获取锁后再次检查
-          if (bucket.migrated.load(std::memory_order_acquire))
+          std::unique_lock<std::mutex> lg(b.mutex);
+          head = b.head.load(std::memory_order_acquire);
+          n = head;
+          Node* newHead = nullptr;
+          Node* tail = nullptr;
+          while (n)
           {
-            continue;
+            Node* nn;
+            if (n->key == key)
+              nn = new Node(key, value);
+            else
+              nn = new Node(n->key, n->value);
+
+            if (!newHead)
+              newHead = nn;
+            if (tail)
+              tail->next_plain = nn;
+            tail = nn;
+            n = n->next.load(std::memory_order_acquire);
           }
 
-          // 检查是否存在键，更新值
-          std::shared_ptr<Node> head = std::atomic_load(&bucket.head);
-          for (auto node = head; node; node = std::atomic_load(&node->next))
+          // 将普通链表发布到原子 head
+          Node* cur = newHead;
+          while (cur)
           {
-            if (node->key == key)
-            {
-              // 为了对任意类型的 V 都严格安全，替换节点而不是就地修改值。
-              // 我们将通过创建具有相同下一个指针的新节点来替换节点。
-              auto newNode = std::make_shared<Node>(key, value, std::atomic_load(&node->next));
-
-              // 将 newNode 链接到 node 的位置。最简单的方法是重建头部列表直到达到 node。
-              // 通过持有桶的互斥锁，可以安全地重建。
-              std::shared_ptr<Node> cur = head;
-              std::shared_ptr<Node> newHead = nullptr;
-              std::shared_ptr<Node> tail = nullptr;
-
-              while (cur)
-              {
-                if (cur.get() == node.get())
-                {
-                  if (!tail)
-                  {
-                    // node 是头节点
-                    newHead = newNode;
-                  }
-                  else
-                  {
-                    tail->next = newNode;
-                  }
-                  newNode->next = std::atomic_load(&cur->next);
-                }
-                else
-                {
-                  auto copy = std::make_shared<Node>(cur->key, cur->value, nullptr);
-                  if (!newHead)
-                    newHead = copy;
-                  else
-                    tail->next = copy;
-                  copy->next = nullptr;
-                  tail = copy;
-                }
-                cur = std::atomic_load(&cur->next);
-              }
-              // 原子发布新的头节点，以便读取者可以看到旧头节点或新头节点
-              std::atomic_store(&bucket.head, newHead);
-              return;
-            }
+            Node* next = cur->next_plain;
+            cur->next.store(next, std::memory_order_release);
+            cur = next;
           }
 
-          // 键不存在，插入新节点到头部
-          auto curHead = std::atomic_load(&bucket.head);
-          auto newNode = std::make_shared<Node>(key, value, curHead);
-          // 原子发布新的头节点，以便读取者可以看到旧头节点或新头节点
-          std::atomic_store(&bucket.head, newNode);
-          t->size.fetch_add(1, std::memory_order_relaxed);
+          b.head.store(newHead, std::memory_order_release);
+          retire_list(head);
+          return;
         }
-
-        // 如果负载因子超过阈值，可能开始重新哈希
-        if ((double) t->size.load(std::memory_order_relaxed) / t->buckets.size() > LOAD_FACTOR)
+        else
         {
-          startRehash();
+          Node* oldHead = head;
+          Node* newNode = new Node(key, value, oldHead);
+          if (b.head.compare_exchange_weak(oldHead, newNode, std::memory_order_release, std::memory_order_relaxed))
+          {
+            t->size.fetch_add(1, std::memory_order_relaxed);
+            if ((double) t->size.load(std::memory_order_relaxed) / t->buckets.size() > LOAD_FACTOR)
+              startRehash();
+            return;
+          }
+          delete newNode;
+          std::this_thread::yield();
         }
-        return;
       }
     }
 
     bool erase(const K& key)
     {
       helpMigrateSome();
-
-      while (true)
-      {
-        auto t = table_;
-        const size_t idx = bucketIndex(t, key);
-        Bucket& bucket = t->buckets[idx];
-
-        if (bucket.migrated.load(std::memory_order_acquire))
-        {
-          helpMigrateSome();
-          continue; // 尝试新表
-        }
-
-        {
-          std::unique_lock lock(bucket.mutex);
-          if (bucket.migrated.load(std::memory_order_acquire))
-            continue;
-
-          // 重新构建链表，跳过被删除的节点；使用 shared_ptr 快照以保证安全
-          std::shared_ptr<Node> head = std::atomic_load(&bucket.head);
-          std::shared_ptr<Node> cur = head;
-          std::shared_ptr<Node> newHead = nullptr;
-          std::shared_ptr<Node> tail = nullptr;
-          bool removed = false;
-
-          while (cur)
-          {
-            if (!removed && cur->key == key)
-            {
-              // 跳过该节点
-              removed = true;
-            }
-            else
-            {
-              auto copy = std::make_shared<Node>(cur->key, cur->value, nullptr);
-              if (!newHead)
-                newHead = copy;
-              else
-                tail->next = copy;
-              tail = copy;
-            }
-            cur = std::atomic_load(&cur->next);
-          }
-
-          if (removed)
-          {
-            std::atomic_store(&bucket.head, newHead);
-            t->size.fetch_sub(1, std::memory_order_relaxed);
-            return true;
-          }
-        }
-
-        // 找不到，检查新表
-        auto r = rehash_table_;
-        if (r)
-        {
-          const size_t idx2 = std::hash<K>{}(key) % r->buckets.size();
-          Bucket& nb = r->buckets[idx2];
-          std::unique_lock lock2(nb.mutex);
-          std::shared_ptr<Node> head = std::atomic_load(&nb.head);
-          std::shared_ptr<Node> cur = head;
-          std::shared_ptr<Node> newHead = nullptr;
-          std::shared_ptr<Node> tail = nullptr;
-          bool removed = false;
-
-          while (cur)
-          {
-            if (!removed && cur->key == key)
-            {
-              removed = true;
-            }
-            else
-            {
-              auto copy = std::make_shared<Node>(cur->key, cur->value, nullptr);
-              if (!newHead)
-                newHead = copy;
-              else
-                tail->next = copy;
-              tail = copy;
-            }
-            cur = std::atomic_load(&cur->next);
-          }
-
-          if (removed)
-          {
-            std::atomic_store(&nb.head, newHead);
-            r->size.fetch_sub(1, std::memory_order_relaxed);
-            return true;
-          }
-        }
-
-        return false;
-      }
-    }
-
-    size_t size() const
-    {
       auto t = table_;
-      auto r = rehash_table_;
-      if (!r)
-        return t->size.load(std::memory_order_relaxed);
-      // 求和 非迁移的旧桶 + 新表
-      size_t s = r->size.load(std::memory_order_relaxed);
-      for (size_t i = 0; i < t->buckets.size(); ++i)
+      size_t idx = bucketIndex(t, key);
+      Bucket& b = t->buckets[idx];
+      std::unique_lock<std::mutex> lg(b.mutex);
+      Node* head = b.head.load(std::memory_order_acquire);
+      Node* cur = head;
+      Node* newHead = nullptr;
+      Node* tail = nullptr;
+      bool removed = false;
+
+      while (cur)
       {
-        if (!t->buckets[i].migrated.load(std::memory_order_acquire))
+        if (!removed && cur->key == key)
+          removed = true;
+        else
         {
-          // 计数旧桶中的节点
-          std::shared_ptr<Node> node = std::atomic_load(&t->buckets[i].head);
-          while (node)
-          {
-            ++s;
-            node = std::atomic_load(&node->next);
-          }
+          Node* nn = new Node(cur->key, cur->value);
+          if (!newHead)
+            newHead = nn;
+          if (tail)
+            tail->next_plain = nn;
+          tail = nn;
         }
+        cur = cur->next.load(std::memory_order_acquire);
       }
-      return s;
+      if (removed)
+      {
+        Node* cur = newHead;
+        while (cur)
+        {
+          Node* next = cur->next_plain;
+          cur->next.store(next, std::memory_order_release);
+          cur = next;
+        }
+        b.head.store(newHead, std::memory_order_release);
+        t->size.fetch_sub(1, std::memory_order_relaxed);
+        retire_list(head);
+        return true;
+      }
+      return false;
     }
+
+    size_t size() const { return table_->size.load(std::memory_order_relaxed); }
 
   private:
-    // 开始重新哈希
+    void retire_list(Node* head)
+    {
+      Node* n = head;
+      while (n)
+      {
+        Node* next = n->next.load(std::memory_order_acquire);
+        retire_node(n);
+        n = next;
+      }
+    }
+
     void startRehash()
     {
-      std::unique_lock lock(table_mutex_);
+      std::unique_lock<std::mutex> lg(table_mutex_);
       if (rehash_table_)
         return;
-      auto oldTable = table_;
-      rehash_table_ = std::make_shared<Table>(oldTable->buckets.size() * 2);
+      auto old = table_;
+      rehash_table_ = std::make_shared<Table>(old->buckets.size() * 2);
       rehash_index_.store(0, std::memory_order_release);
     }
 
-    // 帮助迁移一些桶
     void helpMigrateSome()
     {
       auto old = table_;
@@ -333,37 +354,32 @@ namespace cppkit::concurrency
         size_t idx = rehash_index_.fetch_add(1, std::memory_order_acq_rel);
         if (idx >= old->buckets.size())
         {
-          // 检查是否完成
-          std::unique_lock lock(table_mutex_);
+          std::unique_lock<std::mutex> lg(table_mutex_);
           if (rehash_table_ && rehash_index_.load(std::memory_order_acquire) >= old->buckets.size())
           {
-            // 完成任何剩余的迁移
             for (size_t j = 0; j < old->buckets.size(); ++j)
             {
               if (!old->buckets[j].migrated.load(std::memory_order_acquire))
               {
-                std::unique_lock oldLock(old->buckets[j].mutex);
-                if (old->buckets[j].head)
+                std::unique_lock<std::mutex> blg(old->buckets[j].mutex);
+                Node* n = old->buckets[j].head.load(std::memory_order_acquire);
+                while (n)
                 {
-                  std::shared_ptr<Node> node = std::atomic_load(&old->buckets[j].head);
-                  while (node)
+                  size_t newIdx = std::hash<K>{}(n->key) % newt->buckets.size();
+                  Bucket& nb = newt->buckets[newIdx];
+                  Node* oldHead = nb.head.load(std::memory_order_acquire);
+                  Node* copy = new Node(n->key, n->value, oldHead);
+                  while (!nb.head.compare_exchange_weak(
+                      oldHead, copy, std::memory_order_release, std::memory_order_relaxed))
                   {
-                    size_t newIdx = std::hash<K>{}(node->key) % newt->buckets.size();
-                    Bucket& newBucket = newt->buckets[newIdx];
-                    std::unique_lock newLock(newBucket.mutex);
-                    auto curHead = std::atomic_load(&newBucket.head);
-                    auto copy = std::make_shared<Node>(node->key, node->value, curHead);
-                    std::atomic_store(&newBucket.head, copy);
-                    newt->size.fetch_add(1, std::memory_order_relaxed);
-                    node = std::atomic_load(&node->next);
                   }
+                  newt->size.fetch_add(1, std::memory_order_relaxed);
+                  n = n->next.load(std::memory_order_acquire);
                 }
-                old->buckets[j].head = nullptr;
+                old->buckets[j].head.store(nullptr, std::memory_order_release);
                 old->buckets[j].migrated.store(true, std::memory_order_release);
               }
             }
-
-            // 交换表指针
             table_.swap(rehash_table_);
             rehash_table_.reset();
             rehash_index_.store(0, std::memory_order_release);
@@ -371,28 +387,26 @@ namespace cppkit::concurrency
           return;
         }
 
-        Bucket& oldBucket = old->buckets[idx];
-        // 尝试锁定旧桶并移动节点；之后标记为已迁移
-        {
-          std::unique_lock oldLock(oldBucket.mutex);
-          if (oldBucket.migrated.load(std::memory_order_acquire))
-            continue;
+        Bucket& ob = old->buckets[idx];
+        std::unique_lock<std::mutex> blg(ob.mutex);
+        if (ob.migrated.load(std::memory_order_acquire))
+          continue;
 
-          std::shared_ptr<Node> node = std::atomic_load(&oldBucket.head);
-          while (node)
+        Node* n = ob.head.load(std::memory_order_acquire);
+        while (n)
+        {
+          size_t newIdx = std::hash<K>{}(n->key) % newt->buckets.size();
+          Bucket& nb = newt->buckets[newIdx];
+          Node* oldHead = nb.head.load(std::memory_order_acquire);
+          Node* copy = new Node(n->key, n->value, oldHead);
+          while (!nb.head.compare_exchange_weak(oldHead, copy, std::memory_order_release, std::memory_order_relaxed))
           {
-            size_t newIdx = std::hash<K>{}(node->key) % newt->buckets.size();
-            Bucket& newBucket = newt->buckets[newIdx];
-            std::unique_lock newLock(newBucket.mutex);
-            auto curHead = std::atomic_load(&newBucket.head);
-            auto copy = std::make_shared<Node>(node->key, node->value, curHead);
-            std::atomic_store(&newBucket.head, copy);
-            newt->size.fetch_add(1, std::memory_order_relaxed);
-            node = std::atomic_load(&node->next);
           }
-          oldBucket.head = nullptr;
-          oldBucket.migrated.store(true, std::memory_order_release);
+          newt->size.fetch_add(1, std::memory_order_relaxed);
+          n = n->next.load(std::memory_order_acquire);
         }
+        ob.head.store(nullptr, std::memory_order_release);
+        ob.migrated.store(true, std::memory_order_release);
       }
     }
 
@@ -402,102 +416,74 @@ namespace cppkit::concurrency
     }
 
   public:
+    // ---------------- iterable ----------------
     struct Entry
     {
       K key;
       V value;
     };
 
-    // 快照迭代器
-    // 从未迁移的旧桶和新表中收集Entry
     class Iterator
     {
+      std::shared_ptr<std::vector<Entry>> snapshot_;
+      size_t pos_ = 0;
+
     public:
-      using iterator_category = std::forward_iterator_tag;
-      using value_type = Entry;
-      using difference_type = std::ptrdiff_t;
-      using pointer = value_type*;
-      using reference = value_type&;
-
-      explicit Iterator(std::shared_ptr<std::vector<Entry>> snap, size_t pos = 0) : snapshot_(snap), pos_(pos) {}
-
-      reference operator*() { return (*snapshot_)[pos_]; }
-      pointer operator->() { return &(*snapshot_)[pos_]; }
-
+      Iterator(std::shared_ptr<std::vector<Entry>> snap, size_t pos = 0) : snapshot_(snap), pos_(pos) {}
+      Entry& operator*() { return (*snapshot_)[pos_]; }
+      Entry* operator->() { return &(*snapshot_)[pos_]; }
       Iterator& operator++()
       {
         ++pos_;
         return *this;
       }
-
       Iterator operator++(int)
       {
         Iterator tmp = *this;
         ++(*this);
         return tmp;
       }
-
-      bool operator==(const Iterator& other) const { return snapshot_ == other.snapshot_ && pos_ == other.pos_; }
-      bool operator!=(const Iterator& other) const { return !(*this == other); }
-
-    private:
-      std::shared_ptr<std::vector<Entry>> snapshot_;
-      size_t pos_;
+      bool operator==(const Iterator& o) const { return snapshot_ == o.snapshot_ && pos_ == o.pos_; }
+      bool operator!=(const Iterator& o) const { return !(*this == o); }
     };
 
     class Iterable
     {
+      std::shared_ptr<std::vector<Entry>> snap_;
+
     public:
       explicit Iterable(std::shared_ptr<std::vector<Entry>> snap) : snap_(snap) {}
-
       Iterator begin() { return Iterator(snap_, 0); }
       Iterator end() { return Iterator(snap_, snap_->size()); }
-
-    private:
-      std::shared_ptr<std::vector<Entry>> snap_;
     };
 
     Iterable iterable() const
     {
-      auto snap = snapshot();
-      return Iterable(snap);
-    }
-
-  private:
-    std::shared_ptr<std::vector<Entry>> snapshot() const
-    {
       auto snap = std::make_shared<std::vector<Entry>>();
       auto t = table_;
       auto r = rehash_table_;
-
-      // 从旧表中获取未迁移的桶
-      for (size_t i = 0; i < t->buckets.size(); ++i)
+      for (auto& b : t->buckets)
       {
-        if (t->buckets[i].migrated.load(std::memory_order_acquire))
-          continue;
-        std::shared_ptr<Node> node = std::atomic_load(&t->buckets[i].head);
-        while (node)
+        Node* n = b.head.load(std::memory_order_acquire);
+        while (n)
         {
-          snap->push_back({node->key, node->value});
-          node = std::atomic_load(&node->next);
+          snap->push_back({n->key, n->value});
+          n = n->next.load(std::memory_order_acquire);
         }
       }
-
-      // 从新表中获取
       if (r)
       {
-        for (size_t i = 0; i < r->buckets.size(); ++i)
+        for (auto& b : r->buckets)
         {
-          std::shared_ptr<Node> node = std::atomic_load(&r->buckets[i].head);
-          while (node)
+          Node* n = b.head.load(std::memory_order_acquire);
+          while (n)
           {
-            snap->push_back({node->key, node->value});
-            node = std::atomic_load(&node->next);
+            snap->push_back({n->key, n->value});
+            n = n->next.load(std::memory_order_acquire);
           }
         }
       }
-
-      return snap;
+      return Iterable(snap);
     }
   };
 } // namespace cppkit::concurrency
