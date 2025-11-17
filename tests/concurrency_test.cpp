@@ -1,4 +1,5 @@
 #include "cppkit/concurrency/concurrency_map.hpp"
+#include "cppkit/concurrency/thread_group.hpp"
 #include "cppkit/random.hpp"
 #include <iostream>
 #include <thread>
@@ -48,5 +49,16 @@ int main()
   {
     std::cout << key << " -> " << value << std::endl;
   }
+
+  cppkit::concurrency::ThreadGroup threadGroup;
+  for (int i = 0; i < 100; ++i)
+  {
+    threadGroup.run([i]()
+    {
+      sleep(cppkit::Random::nextInt(3));
+      std::cout << i << std::endl;
+    });
+  }
+  threadGroup.wait();
   return 0;
 }
