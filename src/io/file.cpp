@@ -131,6 +131,12 @@ namespace cppkit::io
     return _path.filename();
   }
 
+  std::string File::getParent() const
+  {
+    const std::filesystem::path parent = _path.parent_path();
+    return parent.string();
+  }
+
   bool File::isFile() const
   {
     return std::filesystem::is_regular_file(_path);
