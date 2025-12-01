@@ -45,10 +45,10 @@ int main()
   sleep(3);
   std::cout << "Map size: " << map.size() << std::endl;
 
-  for (auto iterable = map.iterable(); auto& [key, value] : iterable)
+  map.forEach([](const int& key, const std::string& value)
   {
-    std::cout << key << " -> " << value << std::endl;
-  }
+    std::cout << key << " => " << value << std::endl;
+  });
 
   cppkit::concurrency::ThreadGroup threadGroup;
   for (int i = 0; i < 100; ++i)
