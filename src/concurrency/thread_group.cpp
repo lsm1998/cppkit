@@ -5,7 +5,7 @@ namespace cppkit::concurrency
   void ThreadGroup::run(std::function<void()>&& task)
   {
     {
-      std::thread worker([fn = std::move(task)]() mutable
+      std::thread worker([fn = std::move(task), this]() mutable
       {
         try
         {
@@ -13,10 +13,12 @@ namespace cppkit::concurrency
         }
         catch (...)
         {
-          // 防止异常导致 std::terminate；如需透传异常，可在此记录并在 wait() 中重新抛出
+          // 存储异常信息
+          std::lock_guard lk(_mtx);
+          _exceptions.push_back(std::current_exception());
         }
       });
-      std::lock_guard<std::mutex> lk(_mtx);
+      std::lock_guard lk(_mtx);
       _threads.emplace_back(std::move(worker));
     }
   }
@@ -25,12 +27,18 @@ namespace cppkit::concurrency
   {
     std::vector<std::thread> pending;
     {
-      std::lock_guard<std::mutex> lk(_mtx);
+      std::lock_guard lk(_mtx);
       pending.swap(_threads);
     }
 
     for (auto& t : pending)
       if (t.joinable())
         t.join();
+  }
+
+  std::vector<std::exception_ptr> ThreadGroup::getExceptions() const noexcept
+  {
+    std::lock_guard lk(_mtx);
+    return _exceptions;
   }
 }
