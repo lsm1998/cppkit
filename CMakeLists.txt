@@ -39,6 +39,7 @@ add_library(cppkit SHARED
         src/concurrency/wait_group.cpp
         src/concurrency/thread_pool.cpp
         src/concurrency/thread_group.cpp
+        src/concurrency/semaphore.cpp
 )
 
 # Specify include directories for the target
