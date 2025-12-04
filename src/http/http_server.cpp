@@ -12,7 +12,10 @@ namespace cppkit::http
     this->_server.setOnMessage([this](const event::ConnInfo& conn, const std::vector<uint8_t>& data)
     {
       HttpResponseWriter writer(conn.getFd());
-      const HttpRequest request;
+
+      // 解析HTTP请求
+      const HttpRequest request = HttpRequest::parse(data);
+
       handleRequest(request, writer);
     });
     this->_server.start();
@@ -48,6 +51,7 @@ namespace cppkit::http
   void HttpServer::addRoute(const HttpMethod method, const std::string& path, const HttpHandler& handler) const
   {
     _router.addRoute(method, path, handler);
+    std::cout << "Added route: " << httpMethodValue(method) << " " << path << std::endl;
   }
 
   void HttpServer::handleRequest(const HttpRequest& request, HttpResponseWriter& writer) const

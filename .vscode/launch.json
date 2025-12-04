@@ -13,6 +13,14 @@
             "cwd": "${workspaceFolder}",
         },
         {
+            "name" : "http_server_test",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/tests/http_server_test",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+        },
+        {
             "name": "file_test",
             "type": "lldb",
             "request": "launch",

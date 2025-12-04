@@ -1,6 +1,10 @@
 #pragma once
 
 #include "http_request.hpp"
+#include <string>
+
+// HTTP状态码到描述的映射
+extern const std::unordered_map<int, std::string> HTTP_STATUS_MAP;
 
 namespace cppkit::http
 {
