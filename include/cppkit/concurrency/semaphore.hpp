@@ -29,7 +29,9 @@ namespace cppkit::concurrency
 
   private:
     int _count; // 当前可用许可数量
+
     std::mutex _mtx; // 保护许可数量的互斥锁
+
     std::condition_variable _cv; // 用于等待和通知许可的条件变量
   };
 } // namespace cppkit::concurrency

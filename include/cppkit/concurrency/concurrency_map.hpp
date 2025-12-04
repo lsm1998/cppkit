@@ -53,18 +53,17 @@ namespace cppkit::concurrency
       }
     };
 
-    // 桶数组
-    std::atomic<Node**> table_;
-    std::atomic<std::size_t> table_size_;
-    std::atomic<std::size_t> size_;
-    std::atomic<std::size_t> size_ctl_;
+    std::atomic<Node**> table_; // 哈希表
+    std::atomic<std::size_t> table_size_; // 哈希表大小
+    std::atomic<std::size_t> size_; // 当前元素数量
+    std::atomic<std::size_t> size_ctl_; // 控制扩容阈值
 
-    static constexpr std::size_t DEFAULT_CAPACITY = 16;
-    static constexpr std::size_t MAX_CAPACITY = 1 << 30;
-    static constexpr double LOAD_FACTOR = 0.75;
+    static constexpr std::size_t DEFAULT_CAPACITY = 16; // 默认初始容量
+    static constexpr std::size_t MAX_CAPACITY = 1 << 30; // 最大容量
+    static constexpr double LOAD_FACTOR = 0.75; // 负载因子
 
-    std::hash<K> hasher_;
-    mutable std::shared_mutex resize_mutex_;
+    std::hash<K> hasher_; // 哈希函数
+    mutable std::shared_mutex resize_mutex_; // 保护扩容的互斥锁
 
     // 计算哈希值
     std::size_t hash(const K& key) const
@@ -134,8 +133,7 @@ namespace cppkit::concurrency
     // 帮助转移
     void help_transfer(Node** tab, Node* f)
     {
-      // 简化实现 - 实际应该帮助完成转移
-      // 这里我们只是等待转移完成
+      // 简化实现 - 只是等待转移完成
       while (dynamic_cast<ForwardingNode*>(f))
       {
         std::this_thread::yield();
@@ -506,7 +504,7 @@ namespace cppkit::concurrency
 
     // 并发遍历（简化版本）
     template <typename Func>
-    void forEach( Func func) const
+    void forEach(Func func) const
     {
       Node** tab = table_.load(std::memory_order_acquire);
       if (!tab)
