@@ -11,7 +11,7 @@
 int main()
 {
   cppkit::event::EventLoop loop;
-  cppkit::event::TcpServer srv(&loop, "", 6380);
+  cppkit::event::TcpServer srv(&loop, "127.0.0.1", 6380);
 
   using ConnInfoPtr = std::shared_ptr<cppkit::event::ConnInfo>;
 
@@ -42,13 +42,18 @@ int main()
         }
       });
 
-  // 每隔一秒钟统计当前有多少客户端在线
-  loop.createTimeEvent(1000,
-      [&](int64_t id)
+  // 每隔3秒钟统计当前有多少客户端在线
+  const auto result = loop.createTimeEvent(3000,
+      [&](int64_t _)
       {
         std::cout << "[stats] online clients: " << clients.size() << std::endl;
-        return 1000; // 返回 1000 表示 1 秒后再次触发
+        return 3000; // 返回 3000 表示 3 秒后再次触发
       });
+  if (result < 0)
+  {
+    std::cerr << "Failed to create time event" << std::endl;
+    return -1;
+  }
 
   // 客户端关闭
   srv.setOnClose(

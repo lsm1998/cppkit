@@ -40,11 +40,16 @@ namespace cppkit::event
 
     // file events
     bool createFileEvent(int fd, int mask, const FileEventCallback& cb);
+
     void deleteFileEvent(int fd, int mask);
-    [[nodiscard]] int getFileEvents(int fd) const;
+
+    [[nodiscard]]
+    int getFileEvents(int fd) const;
 
     // time events
-    [[nodiscard]] int64_t createTimeEvent(int64_t after_ms, TimeEventCallback cb) const;
+    [[nodiscard]]
+    int64_t createTimeEvent(int64_t after_ms, TimeEventCallback cb) const;
+
     void deleteTimeEvent(int64_t id) const;
 
     // main loop
