@@ -13,14 +13,16 @@ namespace cppkit::http::server
       std::cout << "New connection from " << conn.getIp() << ":" << conn.getPort() << std::endl;
     });
 
-    this->_server.setOnMessage([this](const event::ConnInfo& conn, const std::vector<uint8_t>& data)
+    this->_server.setReadable([this](const event::ConnInfo& conn)
     {
+      std::cout << "setReadable 执行" << std::endl;
       HttpResponseWriter writer(conn.getFd());
 
       // 解析HTTP请求
       const HttpRequest request = HttpRequest::parse(conn.getFd());
 
       handleRequest(request, writer);
+      return 0;
     });
     this->_server.start();
     this->_loop.run();
@@ -60,7 +62,8 @@ namespace cppkit::http::server
 
   void HttpServer::handleRequest(const HttpRequest& request, HttpResponseWriter& writer) const
   {
-    const auto handler = _router.find(request.getMethod(), request.getPath());
+    std::unordered_map<std::string, std::string> params;
+    const auto handler = _router.find(request.getMethod(), request.getPath(), params);
     if (handler == nullptr)
     {
       writer.setStatusCode(HTTP_NOT_FOUND);
@@ -68,6 +71,7 @@ namespace cppkit::http::server
       writer.write("404 Not Found");
       return;
     }
+    request.setParams(params);
     handler(request, writer);
   }
 } // namespace cppkit::http

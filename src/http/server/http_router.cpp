@@ -48,8 +48,15 @@ namespace cppkit::http::server
 
   HttpHandler Router::find(const HttpMethod method, const std::string& path) const
   {
-    const auto parts = split(path, '/');
     std::unordered_map<std::string, std::string> params;
+    return find(method, path, params);
+  }
+
+  HttpHandler Router::find(const HttpMethod method,
+      const std::string& path,
+      std::unordered_map<std::string, std::string>& params) const
+  {
+    const auto parts = split(path, '/');
     if (const RouteNode* node = match(root.get(), parts, 0, params);
       node && node->handlers.contains(httpMethodValue(method)))
     {

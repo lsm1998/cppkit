@@ -2,16 +2,18 @@
 
 #include "cppkit/http/http_request.hpp"
 #include <vector>
+#include <unordered_map>
 
 namespace cppkit::http::server
 {
   class HttpRequest
   {
+    friend class HttpServer;
     HttpMethod method{};
     std::string path;
-    std::map<std::string, std::string> params;
-    std::map<std::string, std::vector<std::string>> query;
-    std::map<std::string, std::vector<std::string>> headers;
+    mutable std::unordered_map<std::string, std::string> _params{};
+    std::map<std::string, std::vector<std::string>> query{};
+    std::map<std::string, std::vector<std::string>> headers{};
     mutable std::map<std::string, std::vector<std::string>> formData;
     int _fd{};
     std::string extraData{};
@@ -59,5 +61,9 @@ namespace cppkit::http::server
     // 获取所有查询参数
     [[nodiscard]]
     std::map<std::string, std::vector<std::string>> getQuerys() const;
+
+  private:
+    // 设置url param
+    void setParams(std::unordered_map<std::string, std::string> params) const;
   };
 } // namespace cppkit::http::server

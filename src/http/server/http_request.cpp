@@ -20,7 +20,8 @@ namespace cppkit::http::server
       const ssize_t len = read(fd, buffer, BUFFER_SIZE);
       if (len <= 0)
       {
-        throw std::runtime_error("Failed to read from socket.");
+        // throw std::runtime_error("Failed to read from socket.");
+        break;
       }
 
       raw_request.append(buffer, len);
@@ -101,7 +102,15 @@ namespace cppkit::http::server
         // 移除前导空格
         if (size_t value_start = value.find_first_not_of(" \t"); value_start != std::string::npos)
           value = value.substr(value_start);
-        request.headers.at(key).push_back(std::move(value));
+
+        if (auto& it = request.headers[key]; it.empty())
+        {
+          request.headers[key] = {std::move(value)};
+        }
+        else
+        {
+          it.push_back(std::move(value));
+        }
       }
     }
     return request;
@@ -163,7 +172,7 @@ namespace cppkit::http::server
 
   std::string HttpRequest::getParam(const std::string& key) const
   {
-    return params.at(key);
+    return _params.at(key);
   }
 
   std::string HttpRequest::getHeader(const std::string& key) const
@@ -188,5 +197,10 @@ namespace cppkit::http::server
   std::map<std::string, std::vector<std::string>> HttpRequest::getQuerys() const
   {
     return query;
+  }
+
+  void HttpRequest::setParams(std::unordered_map<std::string, std::string> params) const
+  {
+    this->_params = std::move(params);
   }
 }

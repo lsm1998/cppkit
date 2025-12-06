@@ -1,4 +1,5 @@
 #include "cppkit/event/server.hpp"
+#include "cppkit/define.hpp"
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <iostream>
@@ -157,8 +158,14 @@ namespace cppkit::event
                 AE_READABLE,
                 [this](const int cfd, int)
                 {
-                  char buf[4096];
-                  if (const ssize_t n = read(cfd, buf, sizeof(buf)); n > 0)
+                  ssize_t n;
+                  if (onReadable_)
+                  {
+                    n = onReadable_(connections_[cfd]);
+                    goto Cleanup;
+                  }
+                  char buf[DEFAULT_BUFFER_SIZE];
+                  if (n = read(cfd, buf, sizeof(buf)); n > 0)
                   {
                     if (onMsg_)
                     {
@@ -167,6 +174,7 @@ namespace cppkit::event
                   }
                   else
                   {
+                  Cleanup:
                     if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
                     {
                       // 非阻塞下无数据，忽略

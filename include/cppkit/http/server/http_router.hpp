@@ -9,7 +9,7 @@
 
 namespace cppkit::http::server
 {
-  using HttpHandler = std::function<void(const HttpRequest &, HttpResponseWriter &)>;
+  using HttpHandler = std::function<void(const HttpRequest&, HttpResponseWriter&)>;
 
   struct RouteNode
   {
@@ -32,6 +32,10 @@ namespace cppkit::http::server
     [[nodiscard]] bool exists(HttpMethod method, const std::string& path) const;
 
     [[nodiscard]] HttpHandler find(HttpMethod method, const std::string& path) const;
+
+    [[nodiscard]] HttpHandler find(HttpMethod method,
+        const std::string& path,
+        std::unordered_map<std::string, std::string>& params) const;
 
   private:
     static RouteNode* match(RouteNode* node,

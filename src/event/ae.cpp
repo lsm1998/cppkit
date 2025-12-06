@@ -12,7 +12,6 @@
 #include <poll.h>
 #endif
 #include <unistd.h>
-
 #include <utility>
 
 namespace cppkit::event
