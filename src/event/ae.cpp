@@ -76,7 +76,7 @@ namespace cppkit::event
     if (fd < 0)
       return false;
     auto fe = impl_->fevents[fd];
-    printf("createFileEvent地址 %p\n", &impl_->fevents);
+
     fe.mask |= mask;
     if (mask & AE_READABLE)
       fe.rfileProc = cb;
