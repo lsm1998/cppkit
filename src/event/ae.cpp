@@ -263,7 +263,7 @@ namespace cppkit::event
         ts.tv_nsec = (timeout % 1000) * 1000000;
         tsp = &ts;
       }
-      const int nf_ds = kevent(impl_->kq, nullptr, 0, events.data(), (int) events.size(), tsp);
+      const int nf_ds = kevent(impl_->kq, nullptr, 0, events.data(), static_cast<int>(events.size()), tsp);
       if (nf_ds < 0)
       {
         if (errno == EINTR)
@@ -296,8 +296,7 @@ namespace cppkit::event
       {
         TimeEvent te = impl_->tevents.front();
         impl_->tevents.erase(impl_->tevents.begin());
-        int64_t next = te.cb(te.id);
-        if (next > 0)
+        if (const int64_t next = te.cb(te.id); next > 0)
         {
           te.when_ms = mstime() + next;
           impl_->tevents.push_back(te);

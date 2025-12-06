@@ -40,12 +40,6 @@ namespace cppkit::http
     std::map<std::string, std::string> headers;
     std::vector<uint8_t> body;
 
-    // 解析HTTP请求字符串
-    static HttpRequest parse(const std::string& data);
-
-    // 解析HTTP请求字符串（重载）
-    static HttpRequest parse(const std::vector<uint8_t>& data);
-
     HttpRequest() = default;
 
     HttpRequest(const HttpMethod method, std::string url) : method(method), url(std::move(url))
@@ -132,8 +126,7 @@ namespace cppkit::http
       std::string pair;
       while (std::getline(query_stream, pair, '&'))
       {
-        size_t eqpos = pair.find('=');
-        if (eqpos != std::string::npos)
+        if (size_t eqpos = pair.find('='); eqpos != std::string::npos)
         {
           std::string key = pair.substr(0, eqpos);
           std::string value = pair.substr(eqpos + 1);

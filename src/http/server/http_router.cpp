@@ -1,11 +1,9 @@
-#include "cppkit/http/http_router.hpp"
-
-#include <ranges>
-
+#include "cppkit/http/server/http_router.hpp"
 #include "cppkit/http/http_request.hpp"
 #include "cppkit/strings.hpp"
+#include <ranges>
 
-namespace cppkit::http
+namespace cppkit::http::server
 {
   void Router::addRoute(const HttpMethod method, const std::string& path, const HttpHandler& handler) const
   {

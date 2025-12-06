@@ -1,16 +1,16 @@
-#include "cppkit/http/http_server.hpp"
+#include "cppkit/http/server/http_server.hpp"
 #include <iostream>
 
 int main()
 {
-  using namespace cppkit::http;
+  using namespace cppkit::http::server;
 
-  HttpServer server("localhost", 8888);
+  HttpServer server("127.0.0.1", 8888);
 
   server.Get("/hello",
       [](const HttpRequest& req, HttpResponseWriter& res)
       {
-        res.setStatusCode(HTTP_OK);
+        res.setStatusCode(cppkit::http::HTTP_OK);
         res.setHeader("Content-Type", "text/plain");
         res.write("Hello, World!");
       });

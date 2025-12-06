@@ -2,12 +2,12 @@
 
 #include "http_request.hpp"
 #include "http_router.hpp"
-#include "http_respone.hpp"
+#include "http_response.hpp"
 #include "cppkit/event/server.hpp"
 #include <string>
 #include <functional>
 
-namespace cppkit::http
+namespace cppkit::http::server
 {
   class HttpServer
   {

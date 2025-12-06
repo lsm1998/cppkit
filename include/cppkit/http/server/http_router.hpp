@@ -1,15 +1,15 @@
 #pragma once
 
 #include "http_request.hpp"
-#include "http_respone.hpp"
+#include "http_response.hpp"
 #include <string>
 #include <unordered_map>
 #include <functional>
 #include <memory>
 
-namespace cppkit::http
+namespace cppkit::http::server
 {
-  using HttpHandler = std::function<void(const HttpRequest&, HttpResponseWriter&)>;
+  using HttpHandler = std::function<void(const HttpRequest &, HttpResponseWriter &)>;
 
   struct RouteNode
   {

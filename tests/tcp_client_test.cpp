@@ -11,9 +11,9 @@
 #include <vector>
 
 // 单个客户端任务
-void clientTask(int id, const std::string& host, int port, int msgCount, int intervalMs)
+void clientTask(const int id, const std::string& host, int port, const int msgCount, const int intervalMs)
 {
-  int fd = socket(AF_INET, SOCK_STREAM, 0);
+  const int fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd < 0)
   {
     perror("socket");
@@ -22,10 +22,10 @@ void clientTask(int id, const std::string& host, int port, int msgCount, int int
 
   sockaddr_in addr{};
   addr.sin_family = AF_INET;
-  addr.sin_port   = htons(port);
+  addr.sin_port = htons(port);
   inet_pton(AF_INET, host.c_str(), &addr.sin_addr);
 
-  if (connect(fd, (sockaddr*) &addr, sizeof(addr)) < 0)
+  if (connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0)
   {
     perror("connect");
     close(fd);
@@ -37,8 +37,7 @@ void clientTask(int id, const std::string& host, int port, int msgCount, int int
   for (int i = 0; i < msgCount; ++i)
   {
     std::string msg = "client#" + std::to_string(id) + " msg#" + std::to_string(i);
-    ssize_t n       = send(fd, msg.c_str(), msg.size(), 0);
-    if (n < 0)
+    if (const ssize_t n = send(fd, msg.c_str(), msg.size(), 0); n < 0)
     {
       perror("send");
       break;
@@ -53,16 +52,16 @@ void clientTask(int id, const std::string& host, int port, int msgCount, int int
 int main(int argc, char* argv[])
 {
   std::string host = "127.0.0.1";
-  int port         = 6380;
+  int port = 6380;
 
   // 随机数量客户端
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_int_distribution<int> clientDist(5, 20);    // 客户端数量
-  std::uniform_int_distribution<int> msgDist(3, 10);       // 每个客户端消息数
-  std::uniform_int_distribution<int> delayDist(100, 500);  // 每条消息间隔
+  std::uniform_int_distribution<int> clientDist(5, 20); // 客户端数量
+  std::uniform_int_distribution<int> msgDist(3, 10); // 每个客户端消息数
+  std::uniform_int_distribution<int> delayDist(100, 500); // 每条消息间隔
 
-  int clientCount = clientDist(gen);
+  const int clientCount = clientDist(gen);
   std::cout << "[test] launching " << clientCount << " clients...\n";
 
   std::vector<std::thread> threads;
@@ -73,10 +72,11 @@ int main(int argc, char* argv[])
     int msgCount = msgDist(gen);
     int interval = delayDist(gen);
     threads.emplace_back(clientTask, i + 1, host, port, msgCount, interval);
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));  // 稍微错开启动时间
+    std::this_thread::sleep_for(std::chrono::milliseconds(50)); // 稍微错开启动时间
   }
 
-  for (auto& t : threads) t.join();
+  for (auto& t : threads)
+    t.join();
 
   std::cout << "[test] all clients finished\n";
   return 0;

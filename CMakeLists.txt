@@ -18,8 +18,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_library(cppkit SHARED
         src/http/http_client.cpp
         src/http/http_request.cpp
-        src/http/http_server.cpp
-        src/http/http_router.cpp
+        src/http/server/http_server.cpp
+        src/http/server/http_router.cpp
         src/io/file.cpp
         src/strings.cpp
         src/arg_parser.cpp
@@ -40,6 +40,8 @@ add_library(cppkit SHARED
         src/concurrency/thread_pool.cpp
         src/concurrency/thread_group.cpp
         src/concurrency/semaphore.cpp
+        src/http/server/http_request.cpp
+        src/http/server/http_response.cpp
 )
 
 # Specify include directories for the target

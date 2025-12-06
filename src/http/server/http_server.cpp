@@ -1,20 +1,24 @@
-#include "cppkit/http/http_server.hpp"
-
+#include "cppkit/http/server/http_server.hpp"
+#include "cppkit/event/server.hpp"
 #include <iostream>
 
-#include "cppkit/event/server.hpp"
-
-namespace cppkit::http
+namespace cppkit::http::server
 {
   void HttpServer::start()
   {
     this->_server = event::TcpServer(&this->_loop, this->_host, static_cast<uint16_t>(this->_port));
+
+    this->_server.setOnConnection([](const event::ConnInfo& conn)
+    {
+      std::cout << "New connection from " << conn.getIp() << ":" << conn.getPort() << std::endl;
+    });
+
     this->_server.setOnMessage([this](const event::ConnInfo& conn, const std::vector<uint8_t>& data)
     {
       HttpResponseWriter writer(conn.getFd());
 
       // 解析HTTP请求
-      const HttpRequest request = HttpRequest::parse(data);
+      const HttpRequest request = HttpRequest::parse(conn.getFd());
 
       handleRequest(request, writer);
     });
@@ -56,7 +60,7 @@ namespace cppkit::http
 
   void HttpServer::handleRequest(const HttpRequest& request, HttpResponseWriter& writer) const
   {
-    const auto handler = _router.find(request.method, request.getPath());
+    const auto handler = _router.find(request.getMethod(), request.getPath());
     if (handler == nullptr)
     {
       writer.setStatusCode(HTTP_NOT_FOUND);
