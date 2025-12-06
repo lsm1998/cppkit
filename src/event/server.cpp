@@ -157,26 +157,6 @@ namespace cppkit::event
                 AE_READABLE,
                 [this](const int cfd, int)
                 {
-                  // read data
-                  char buf[4096];
-                  if (const ssize_t n = read(cfd, buf, sizeof(buf)); n > 0)
-                  {
-                    if (onMsg_)
-                      onMsg_(connections_[cfd], std::vector<uint8_t>(buf, buf + n));
-                  }
-                  else
-                  {
-                    // closed or error
-                    loop_->deleteFileEvent(cfd, AE_READABLE | AE_WRITABLE);
-                    close(cfd);
-                  }
-                });
-
-            // create close handler for client
-            loop_->createFileEvent(c,
-                AE_READABLE,
-                [this](const int cfd, int)
-                {
                   char buf[4096];
                   if (const ssize_t n = read(cfd, buf, sizeof(buf)); n > 0)
                   {
