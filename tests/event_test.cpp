@@ -10,15 +10,18 @@
 
 int main()
 {
+  // define server and event loop
   cppkit::event::EventLoop loop;
+
+  // setup tcp server
   cppkit::event::TcpServer srv(&loop, "127.0.0.1", 6380);
 
   using ConnInfoPtr = std::shared_ptr<cppkit::event::ConnInfo>;
 
-  // 保存所有活跃连接
+  // save all active clients
   std::unordered_map<std::string, ConnInfoPtr> clients;
 
-  // 新连接
+  // new connection established
   srv.setOnConnection(
       [&](const cppkit::event::ConnInfo& info)
       {
@@ -26,13 +29,13 @@ int main()
         clients[info.getClientId()] = std::make_shared<cppkit::event::ConnInfo>(info);
       });
 
-  // 接收到消息
+  // message received
   srv.setOnMessage(
       [&](const cppkit::event::ConnInfo& info, const std::vector<uint8_t>& msg)
       {
         std::cout << "[msg] " << info.getClientId() << ": " << std::string(msg.begin(), msg.end()) << std::endl;
 
-        // 广播给所有活跃客户端
+        // broadcast to all clients
         for (const auto& val : clients | std::views::values)
         {
           if (val->send(msg.data(), msg.size()) < 0)
@@ -42,12 +45,12 @@ int main()
         }
       });
 
-  // 每隔3秒钟统计当前有多少客户端在线
+  // periodic stats report
   const auto result = loop.createTimeEvent(3000,
       [&](int64_t _)
       {
         std::cout << "[stats] online clients: " << clients.size() << std::endl;
-        return 3000; // 返回 3000 表示 3 秒后再次触发
+        return 3000; // reschedule after 3 seconds
       });
   if (result < 0)
   {
@@ -55,7 +58,7 @@ int main()
     return -1;
   }
 
-  // 客户端关闭
+  // client closed connection
   srv.setOnClose(
       [&](const cppkit::event::ConnInfo& info)
       {

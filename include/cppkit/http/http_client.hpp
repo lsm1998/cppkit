@@ -13,8 +13,7 @@ namespace cppkit::http
 {
   class HttpClient
   {
-    // 超时时间
-    size_t timeoutSeconds = 30;
+    size_t timeoutSeconds{30}; // 超时时间
 
   public:
     HttpClient() = default;
