@@ -70,6 +70,13 @@ namespace cppkit::crypto
     return sha1.hexDigest();
   }
 
+  std::array<uint8_t, 20> SHA1::shaBinary(const std::string& message)
+  {
+    SHA1 sha1;
+    sha1.update(message);
+    return sha1.digest();
+  }
+
   std::string SHA1::hmac(const std::string& key, const std::string& message)
   {
     std::vector<uint8_t> keyBytes(key.begin(), key.end());
@@ -107,17 +114,37 @@ namespace cppkit::crypto
   void SHA1::finalize()
   {
     if (finalized_)
-      return;
-    totalBits_ += bufferLen_ * 8;
+        return;
 
-    constexpr uint8_t pad[64] = {0x80};
-    const size_t padLen = (bufferLen_ < 56) ? (56 - bufferLen_) : (120 - bufferLen_);
-    update(pad, padLen);
+    // 处理剩余的buffer
+    const uint64_t bitLength = totalBits_ + (bufferLen_ * 8);
 
-    uint8_t lengthBytes[8];
-    for (int i = 0; i < 8; ++i)
-      lengthBytes[7 - i] = (totalBits_ >> (i * 8)) & 0xFF;
-    update(lengthBytes, 8);
+    // 添加10000000的padding
+    buffer_[bufferLen_++] = 0x80;
+
+    // 如果剩余空间不足8字节存放长度，则处理当前块并创建一个新的全零块
+    if (bufferLen_ > 56) {
+        std::memset(buffer_ + bufferLen_, 0, 64 - bufferLen_);
+        transform(buffer_);
+        std::memset(buffer_, 0, sizeof(buffer_));
+        bufferLen_ = 0;
+    }
+
+    // 填充剩余空间为0
+    std::memset(buffer_ + bufferLen_, 0, 56 - bufferLen_);
+
+    // 在块的最后8字节存储总长度（大端）
+    buffer_[56] = (bitLength >> 56) & 0xFF;
+    buffer_[57] = (bitLength >> 48) & 0xFF;
+    buffer_[58] = (bitLength >> 40) & 0xFF;
+    buffer_[59] = (bitLength >> 32) & 0xFF;
+    buffer_[60] = (bitLength >> 24) & 0xFF;
+    buffer_[61] = (bitLength >> 16) & 0xFF;
+    buffer_[62] = (bitLength >> 8) & 0xFF;
+    buffer_[63] = bitLength & 0xFF;
+
+    // 处理最后一个块
+    transform(buffer_);
 
     finalized_ = true;
   }

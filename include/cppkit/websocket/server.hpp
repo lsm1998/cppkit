@@ -77,10 +77,10 @@ namespace cppkit::websocket
 
   private:
     // 处理握手请求
-    bool handleHandshake(const event::ConnInfo& connInfo, const std::vector<uint8_t>& data);
+    static bool handleHandshake(const event::ConnInfo& connInfo, const std::vector<uint8_t>& data);
 
-    // 解析 WebSocket 帧
-    bool parseFrame(const std::vector<uint8_t>& data, Frame& frame);
+    // 解析 WebSocket 帧，返回解析的字节数，如果解析失败返回0
+    size_t parseFrame(const std::vector<uint8_t>& data, Frame& frame);
 
     // 构建 WebSocket 帧
     std::vector<uint8_t> buildFrame(const std::vector<uint8_t>& payload,

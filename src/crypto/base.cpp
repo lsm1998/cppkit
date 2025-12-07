@@ -32,21 +32,25 @@ namespace cppkit::crypto
       i += 3;
     }
 
-    if (i < data.size())
+    // 2. 处理剩余的 1 字节或 2 字节 (填充逻辑)
+    if (const size_t remainder = data.size() - i; remainder == 1)
     {
-      uint32_t n = (data[i] << 16);
-      if (i + 1 < data.size())
-        n |= (data[i + 1] << 8);
-
+      // 剩余 1 字节：输出 XX==
+      const uint32_t n = (data[i] << 16);
       out.push_back(b64_table[(n >> 18) & 63]);
       out.push_back(b64_table[(n >> 12) & 63]);
-      if (i + 1 < data.size())
-        out.push_back(b64_table[(n >> 6) & 63]);
-      else
-        out.push_back('=');
-      out.push_back('=');
+      out.push_back('='); // 填充第三位
+      out.push_back('='); // 填充第四位
     }
-
+    else if (remainder == 2)
+    {
+      // 剩余 2 字节：输出 XXX=
+      const uint32_t n = (data[i] << 16) | (data[i + 1] << 8);
+      out.push_back(b64_table[(n >> 18) & 63]);
+      out.push_back(b64_table[(n >> 12) & 63]);
+      out.push_back(b64_table[(n >> 6) & 63]);
+      out.push_back('='); // 填充第四位
+    }
     return out;
   }
 
@@ -67,7 +71,7 @@ namespace cppkit::crypto
       pad++;
 
     std::vector<uint8_t> out;
-    out.reserve((input.size() / 4) * 3 - pad);
+    out.reserve(input.size() / 4 * 3 - pad);
 
     for (size_t i = 0; i < input.size(); i += 4)
     {

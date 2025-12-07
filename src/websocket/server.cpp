@@ -133,18 +133,28 @@ namespace cppkit::websocket
 
     if (auto& [state, buffer] = it->second; state == ConnState::HAND_SHAKING)
     {
-      // 完成握手
-      if (handleHandshake(connInfo, data))
-      {
-        state = ConnState::CONNECTED;
-        buffer.clear();
+      // 收集数据直到找到完整的HTTP请求头
+      buffer.insert(buffer.end(), data.begin(), data.end());
 
-        // 通知连接已建立
-        if (_onConnect)
+      // 检查是否收到完整的HTTP头（以\r\n\r\n结尾）
+      std::string bufferStr(buffer.begin(), buffer.end());
+
+      if (const size_t headerEnd = bufferStr.find("\r\n\r\n"); headerEnd != std::string::npos)
+      {
+        // 完成握手
+        if (handleHandshake(connInfo, buffer))
         {
-          const auto req =
-              http::server::HttpRequest::parse(connInfo.getFd(), std::string(data.begin(), data.end()), "");
-          _onConnect(req, WSConnInfo(connInfo));
+          state = ConnState::CONNECTED;
+
+          // 通知连接已建立
+          if (_onConnect)
+          {
+            const auto req =
+                http::server::HttpRequest::parse(connInfo.getFd(), std::string(buffer.begin(), buffer.end()), "");
+            _onConnect(req, WSConnInfo(connInfo));
+          }
+
+          buffer.clear();
         }
       }
     }
@@ -164,9 +174,10 @@ namespace cppkit::websocket
         }
 
         // 尝试解析帧
-        if (parseFrame(std::vector(buffer.begin() + static_cast<long>(parsedOffset), buffer.end()), frame))
+        const size_t parsedBytes = parseFrame(std::vector(buffer.begin() + parsedOffset, buffer.end()), frame);
+        if (parsedBytes > 0)
         {
-          parsedOffset += buffer.size() - (frame.payload.size() + parsedOffset);
+          parsedOffset += parsedBytes;
 
           // 处理消息
           if (_onMessage)
@@ -219,8 +230,8 @@ namespace cppkit::websocket
     // Generate Sec-WebSocket-Accept
     const std::string magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
     std::string combined = key + magic;
-    std::string sha1Hash = crypto::SHA1::sha(combined);
-    std::vector<uint8_t> sha1Bytes(sha1Hash.begin(), sha1Hash.end());
+    const auto sha1Binary = crypto::SHA1::shaBinary(combined);
+    std::vector sha1Bytes(sha1Binary.begin(), sha1Binary.end());
     std::string accept = crypto::Base64::encode(sha1Bytes);
 
     // Build response
@@ -236,11 +247,11 @@ namespace cppkit::websocket
     return sent == static_cast<ssize_t>(respStr.size());
   }
 
-  bool WSServer::parseFrame(const std::vector<uint8_t>& data, Frame& frame)
+  size_t WSServer::parseFrame(const std::vector<uint8_t>& data, Frame& frame)
   {
     if (data.size() < 2)
     {
-      return false;
+      return 0;
     }
 
     size_t offset = 0;
@@ -263,7 +274,7 @@ namespace cppkit::websocket
     {
       if (data.size() < offset + 2)
       {
-        return false;
+        return 0;
       }
       frame.payloadLength = (static_cast<uint16_t>(data[offset]) << 8) | static_cast<uint16_t>(data[offset + 1]);
       offset += 2;
@@ -273,7 +284,7 @@ namespace cppkit::websocket
       // 127
       if (data.size() < offset + 8)
       {
-        return false;
+        return 0;
       }
       frame.payloadLength = 0;
       for (int i = 0; i < 8; ++i)
@@ -288,7 +299,7 @@ namespace cppkit::websocket
     {
       if (data.size() < offset + 4)
       {
-        return false;
+        return 0;
       }
       std::memcpy(frame.maskingKey, &data[offset], 4);
       offset += 4;
@@ -297,7 +308,7 @@ namespace cppkit::websocket
     // Check if payload is available
     if (data.size() < offset + frame.payloadLength)
     {
-      return false;
+      return 0;
     }
 
     // Parse Payload
@@ -316,7 +327,8 @@ namespace cppkit::websocket
       }
     }
 
-    return true;
+    // 返回解析的总字节数：offset + payloadLength
+    return offset + frame.payloadLength;
   }
 
   std::vector<uint8_t> WSServer::buildFrame(const std::vector<uint8_t>& payload,

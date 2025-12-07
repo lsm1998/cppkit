@@ -26,6 +26,9 @@ namespace cppkit::crypto
 
     static std::string sha(const std::string& message);
 
+    // 返回二进制SHA1哈希
+    static std::array<uint8_t, 20> shaBinary(const std::string& message);
+
     static std::string hmac(const std::string& key, const std::string& message);
 
   private:

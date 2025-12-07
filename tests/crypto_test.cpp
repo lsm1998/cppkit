@@ -7,18 +7,16 @@ int main()
   const std::string str = "hello world";
   const std::string key = "today";
 
-  // 5eb63bbbe01eeed093cb22bb8f5acdc3
-  std::cout << cppkit::crypto::MD5::hash(str) << std::endl;
+  assert(cppkit::crypto::MD5::hash(str) == "5eb63bbbe01eeed093cb22bb8f5acdc3");
 
-  // 2aae6c35c94fcfb415dbe95f408b9ce91ee846ed
   cppkit::crypto::SHA1 sha1;
   sha1.update(str);
-  std::cout << sha1.hexDigest() << std::endl;
+  assert(sha1.hexDigest()=="2aae6c35c94fcfb415dbe95f408b9ce91ee846ed");
 
-  // b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
   cppkit::crypto::SHA256 sha256;
   sha256.update(str);
   std::cout << sha256.hexDigest() << std::endl;
+  assert(sha256.hexDigest()=="b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9");
 
   // 49263232009275ea7b06a79aabe5949acdafcd4f3b0f2300bef802aa5847a7e6
   std::cout << cppkit::crypto::SHA256::hmac(key, str) << std::endl;
@@ -30,7 +28,7 @@ int main()
 
   // 随机生成IV
   std::string iv(16, '\0');
-  for(auto& c : iv)
+  for (auto& c : iv)
     c = static_cast<char>(rand() % 256);
   cppkit::crypto::Example("1234567890abcdef", iv, "这是一段文本-hello");
   return 0;
