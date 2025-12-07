@@ -8,19 +8,14 @@ namespace cppkit::http::server
   {
     this->_server = event::TcpServer(&this->_loop, this->_host, static_cast<uint16_t>(this->_port));
 
-    this->_server.setOnConnection([](const event::ConnInfo& conn)
-    {
-      std::cout << "New connection from " << conn.getIp() << ":" << conn.getPort() << std::endl;
-    });
-
     this->_server.setReadable([this](const event::ConnInfo& conn)
     {
-      std::cout << "setReadable 执行" << std::endl;
       HttpResponseWriter writer(conn.getFd());
 
       // 解析HTTP请求
       const HttpRequest request = HttpRequest::parse(conn.getFd());
 
+      // 处理请求
       handleRequest(request, writer);
       return 0;
     });
@@ -56,6 +51,11 @@ namespace cppkit::http::server
 
   void HttpServer::addRoute(const HttpMethod method, const std::string& path, const HttpHandler& handler) const
   {
+    // 判断路由是否已存在
+    if (this->_router.exists(method, path))
+    {
+      throw std::runtime_error("Route already exists: " + httpMethodValue(method) + " " + path);
+    }
     _router.addRoute(method, path, handler);
     std::cout << "Added route: " << httpMethodValue(method) << " " << path << std::endl;
   }

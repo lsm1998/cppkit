@@ -110,8 +110,16 @@ namespace cppkit::http
     const std::string prefix = https ? "https://" : "http://";
     const size_t start = prefix.size();
     const size_t slash = url.find('/', start);
-    host = url.substr(start, slash - start);
-    path = (slash == std::string::npos) ? "/" : url.substr(slash);
+    if (slash == std::string::npos)
+    {
+        host = url.substr(start);
+        path = "/";
+    }
+    else
+    {
+        host = url.substr(start, slash - start);
+        path = url.substr(slash);
+    }
 
     // 是否存在端口
     if (const size_t colon = host.find(':'); colon != std::string::npos)

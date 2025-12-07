@@ -39,8 +39,10 @@ namespace cppkit::http::server
     void setHost(std::string host) { _host = std::move(host); }
 
   private:
+    // 添加路由处理函数
     void addRoute(HttpMethod method, const std::string& path, const HttpHandler& handler) const;
 
+    // 处理HTTP请求
     void handleRequest(const HttpRequest& request, HttpResponseWriter& writer) const;
 
     int _port;
