@@ -1,9 +1,11 @@
 #include "cppkit/http/server/http_server.hpp"
+#include "cppkit/json/json.hpp"
 #include <iostream>
 
 int main()
 {
   using namespace cppkit::http::server;
+  using namespace cppkit::json;
 
   // create server
   HttpServer server("127.0.0.1", 8888);
@@ -38,8 +40,17 @@ int main()
         auto body = req.readBody();
 
         res.setStatusCode(cppkit::http::HTTP_OK);
-        res.setHeader("Content-Type", "text/plain");
-        res.write("data: " + std::string(body.begin(), body.end()));
+        res.setHeader("Content-Type", "application/json");
+
+        auto result = Json::makeObject();
+        result["status"] = Json(200);
+
+        if (auto data = Json::parse(std::string(body.begin(), body.end())); data.isObject())
+        {
+          auto obj = data.asObject();
+          result["message"] = Json(obj["name"].asString());
+        }
+        res.write(result.dump());
       });
 
   std::cout << "Starting server at " << server.getHost() << ":" << server.getPort() << std::endl;

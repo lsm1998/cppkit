@@ -14,64 +14,130 @@ namespace cppkit::json
   class Json
   {
   public:
-    using array      = std::vector<Json>;
-    using object     = std::map<std::string, Json>;
+    using array = std::vector<Json>;
+    using object = std::map<std::string, Json>;
     using value_type = std::variant<std::nullptr_t, bool, double, std::string, array, object>;
 
     value_type v;
 
-    Json() noexcept : v(nullptr) {}
-    Json(std::nullptr_t) noexcept : v(nullptr) {}
-    Json(bool b) noexcept : v(b) {}
-    Json(int i) noexcept : v(static_cast<double>(i)) {}
-    Json(long l) noexcept : v(static_cast<double>(l)) {}
-    Json(double d) noexcept : v(d) {}
-    Json(const char* s) : v(std::string(s)) {}
-    Json(const std::string& s) : v(s) {}
-    Json(std::string&& s) : v(std::string(std::move(s))) {}
-    Json(const array& a) : v(a) {}
-    Json(array&& a) : v(std::move(a)) {}
-    Json(const object& o) : v(o) {}
-    Json(object&& o) : v(std::move(o)) {}
+    Json() noexcept : v(nullptr)
+    {
+    }
+
+    explicit Json(std::nullptr_t) noexcept : v(nullptr)
+    {
+    }
+
+    explicit Json(bool b) noexcept : v(b)
+    {
+    }
+
+    explicit Json(const int i) noexcept : v(static_cast<double>(i))
+    {
+    }
+
+    explicit Json(const long l) noexcept : v(static_cast<double>(l))
+    {
+    }
+
+    explicit Json(double d) noexcept : v(d)
+    {
+    }
+
+    explicit Json(const char* s) : v(std::string(s))
+    {
+    }
+
+    explicit Json(const std::string& s) : v(s)
+    {
+    }
+
+    explicit Json(std::string&& s) : v(std::string(std::move(s)))
+    {
+    }
+
+    explicit Json(const array& a) : v(a)
+    {
+    }
+
+    explicit Json(array&& a) : v(std::move(a))
+    {
+    }
+
+    explicit Json(const object& o) : v(o)
+    {
+    }
+
+    explicit Json(object&& o) : v(std::move(o))
+    {
+    }
 
     static Json makeArray() { return Json(array{}); }
+
     static Json makeObject() { return Json(object{}); }
 
+    [[nodiscard]]
     bool isNull() const { return std::holds_alternative<std::nullptr_t>(v); }
+
+    [[nodiscard]]
     bool isBool() const { return std::holds_alternative<bool>(v); }
+
+    [[nodiscard]]
     bool isNumber() const { return std::holds_alternative<double>(v); }
+
+    [[nodiscard]]
     bool isString() const { return std::holds_alternative<std::string>(v); }
+
+    [[nodiscard]]
     bool isArray() const { return std::holds_alternative<array>(v); }
+
+    [[nodiscard]]
     bool isObject() const { return std::holds_alternative<object>(v); }
 
     bool& asBool() { return std::get<bool>(v); }
+
     double& asNumber() { return std::get<double>(v); }
+
     std::string& asString() { return std::get<std::string>(v); }
+
     array& asArray() { return std::get<array>(v); }
+
     object& asObject() { return std::get<object>(v); }
 
+    [[nodiscard]]
     const bool& asBool() const { return std::get<bool>(v); }
+
+    [[nodiscard]]
     const double& asNumber() const { return std::get<double>(v); }
+
+    [[nodiscard]]
     const std::string& asString() const { return std::get<std::string>(v); }
+
+    [[nodiscard]]
     const array& asArray() const { return std::get<array>(v); }
+
+    [[nodiscard]]
     const object& asObject() const { return std::get<object>(v); }
 
     Json& operator[](const std::string& key)
     {
-      if (!isObject()) v = object{};
+      if (!isObject())
+        v = object{};
       return std::get<object>(v)[key];
     }
 
     const Json& operator[](const std::string& key) const { return std::get<object>(v).at(key); }
 
-    Json& operator[](size_t idx)
+    Json& operator[](const size_t idx)
     {
-      if (!isArray()) throw std::runtime_error("not an array");
+      if (!isArray())
+        throw std::runtime_error("not an array");
       return std::get<array>(v).at(idx);
     }
 
     // Serialization
-    std::string dump(bool pretty = false, int indent_size = 2) const
+    [[nodiscard]]
+    std::string dump(const bool pretty = false, const int indent_size = 2) const
     {
       std::ostringstream oss;
       if (pretty)
@@ -114,7 +180,7 @@ namespace cppkit::json
             if (c < 0x20)
             {
               os << "\\u" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << (int) c << std::dec
-                 << std::nouppercase;
+                  << std::nouppercase;
             }
             else
               os << c;
@@ -155,7 +221,8 @@ namespace cppkit::json
         const auto& a = asArray();
         for (size_t i = 0; i < a.size(); ++i)
         {
-          if (i) os << ',';
+          if (i)
+            os << ',';
           a[i].dumpCompact(os);
         }
         os << ']';
@@ -165,10 +232,11 @@ namespace cppkit::json
       {
         os << '{';
         const auto& o = asObject();
-        bool first    = true;
+        bool first = true;
         for (const auto& p : o)
         {
-          if (!first) os << ',';
+          if (!first)
+            os << ',';
           first = false;
           escapeString(os, p.first);
           os << ':';
@@ -181,7 +249,7 @@ namespace cppkit::json
 
     void dumpPretty(std::ostream& os, int depth, int indent_size) const
     {
-      std::string indent(depth * indent_size, ' ');
+      const std::string indent(depth * indent_size, ' ');
       if (isNull())
       {
         os << "null";
@@ -210,7 +278,8 @@ namespace cppkit::json
         const auto& a = asArray();
         for (size_t i = 0; i < a.size(); ++i)
         {
-          if (i) os << ",\n";
+          if (i)
+            os << ",\n";
           os << std::string((depth + 1) * indent_size, ' ');
           a[i].dumpPretty(os, depth + 1, indent_size);
         }
@@ -221,10 +290,11 @@ namespace cppkit::json
       {
         os << "{\n";
         const auto& o = asObject();
-        bool first    = true;
+        bool first = true;
         for (const auto& p : o)
         {
-          if (!first) os << ",\n";
+          if (!first)
+            os << ",\n";
           first = false;
           os << std::string((depth + 1) * indent_size, ' ');
           escapeString(os, p.first);
@@ -240,27 +310,30 @@ namespace cppkit::json
     static Json parse(const std::string& s)
     {
       size_t idx = 0;
-      auto skip  = [&](void)
+      auto skip = [&]()
       {
-        while (idx < s.size() && std::isspace((unsigned char) s[idx])) ++idx;
+        while (idx < s.size() && std::isspace(static_cast<unsigned char>(s[idx])))
+          ++idx;
       };
 
       std::function<Json()> parse_value;
 
-      std::function<std::string()> parseString = [&]() -> std::string
+      const std::function parseString = [&]() -> std::string
       {
-        if (s[idx] != '"') throw std::runtime_error("expected string\n");
-        ++idx;  // skip '"'
+        if (s[idx] != '"')
+          throw std::runtime_error("expected string\n");
+        ++idx; // skip '"'
         std::string res;
         while (idx < s.size())
         {
-          char c = s[idx++];
-          if (c == '"') break;
+          const char c = s[idx++];
+          if (c == '"')
+            break;
           if (c == '\\')
           {
-            if (idx >= s.size()) throw std::runtime_error("unterminated escape");
-            char e = s[idx++];
-            switch (e)
+            if (idx >= s.size())
+              throw std::runtime_error("unterminated escape");
+            switch (const char e = s[idx++])
             {
               case '"':
                 res.push_back('"');
@@ -288,11 +361,12 @@ namespace cppkit::json
                 break;
               case 'u':
               {
-                if (idx + 4 > s.size()) throw std::runtime_error("invalid unicode escape");
+                if (idx + 4 > s.size())
+                  throw std::runtime_error("invalid unicode escape");
                 int code = 0;
                 for (int i = 0; i < 4; ++i)
                 {
-                  char ch = s[idx++];
+                  const char ch = s[idx++];
                   code <<= 4;
                   if (ch >= '0' && ch <= '9')
                     code += ch - '0';
@@ -336,29 +410,37 @@ namespace cppkit::json
         return res;
       };
 
-      std::function<double()> parseNumber = [&]() -> double
+      const std::function parseNumber = [&]() -> double
       {
-        size_t start = idx;
-        if (s[idx] == '-') ++idx;
+        const size_t start = idx;
+        if (s[idx] == '-')
+          ++idx;
         if (idx < s.size() && s[idx] == '0')
           ++idx;
         else
         {
-          if (idx >= s.size() || !std::isdigit((unsigned char) s[idx])) throw std::runtime_error("invalid number");
-          while (idx < s.size() && std::isdigit((unsigned char) s[idx])) ++idx;
+          if (idx >= s.size() || !std::isdigit((unsigned char) s[idx]))
+            throw std::runtime_error("invalid number");
+          while (idx < s.size() && std::isdigit((unsigned char) s[idx]))
+            ++idx;
         }
         if (idx < s.size() && s[idx] == '.')
         {
           ++idx;
-          if (idx >= s.size() || !std::isdigit((unsigned char) s[idx])) throw std::runtime_error("invalid number");
-          while (idx < s.size() && std::isdigit((unsigned char) s[idx])) ++idx;
+          if (idx >= s.size() || !std::isdigit(static_cast<unsigned char>(s[idx])))
+            throw std::runtime_error("invalid number");
+          while (idx < s.size() && std::isdigit(static_cast<unsigned char>(s[idx])))
+            ++idx;
         }
         if (idx < s.size() && (s[idx] == 'e' || s[idx] == 'E'))
         {
           ++idx;
-          if (idx < s.size() && (s[idx] == '+' || s[idx] == '-')) ++idx;
-          if (idx >= s.size() || !std::isdigit((unsigned char) s[idx])) throw std::runtime_error("invalid number");
-          while (idx < s.size() && std::isdigit((unsigned char) s[idx])) ++idx;
+          if (idx < s.size() && (s[idx] == '+' || s[idx] == '-'))
+            ++idx;
+          if (idx >= s.size() || !std::isdigit(static_cast<unsigned char>(s[idx])))
+            throw std::runtime_error("invalid number");
+          while (idx < s.size() && std::isdigit(static_cast<unsigned char>(s[idx])))
+            ++idx;
         }
         double val = 0.0;
         try
@@ -375,7 +457,8 @@ namespace cppkit::json
       parse_value = [&]() -> Json
       {
         skip();
-        if (idx >= s.size()) throw std::runtime_error("unexpected end");
+        if (idx >= s.size())
+          throw std::runtime_error("unexpected end");
         char c = s[idx];
         if (c == 'n')
         {
@@ -411,8 +494,8 @@ namespace cppkit::json
         }
         if (c == '[')
         {
-          ++idx;  // skip '['
-          Json::array arr;
+          ++idx; // skip '['
+          array arr;
           skip();
           if (idx < s.size() && s[idx] == ']')
           {
@@ -423,7 +506,8 @@ namespace cppkit::json
           {
             arr.emplace_back(parse_value());
             skip();
-            if (idx >= s.size()) throw std::runtime_error("unexpected end in array");
+            if (idx >= s.size())
+              throw std::runtime_error("unexpected end in array");
             if (s[idx] == ',')
             {
               ++idx;
@@ -440,8 +524,8 @@ namespace cppkit::json
         }
         if (c == '{')
         {
-          ++idx;  // skip '{'
-          Json::object obj;
+          ++idx; // skip '{'
+          object obj;
           skip();
           if (idx < s.size() && s[idx] == '}')
           {
@@ -451,15 +535,18 @@ namespace cppkit::json
           while (true)
           {
             skip();
-            if (idx >= s.size() || s[idx] != '"') throw std::runtime_error("expected string key in object");
+            if (idx >= s.size() || s[idx] != '"')
+              throw std::runtime_error("expected string key in object");
             std::string key = parseString();
             skip();
-            if (idx >= s.size() || s[idx] != ':') throw std::runtime_error("expected ':' after key");
+            if (idx >= s.size() || s[idx] != ':')
+              throw std::runtime_error("expected ':' after key");
             ++idx;
             Json val = parse_value();
             obj.emplace(std::move(key), std::move(val));
             skip();
-            if (idx >= s.size()) throw std::runtime_error("unexpected end in object");
+            if (idx >= s.size())
+              throw std::runtime_error("unexpected end in object");
             if (s[idx] == ',')
             {
               ++idx;
@@ -475,7 +562,7 @@ namespace cppkit::json
           return Json(std::move(obj));
         }
         // number
-        if (c == '-' || std::isdigit((unsigned char) c))
+        if (c == '-' || std::isdigit(static_cast<unsigned char>(c)))
         {
           double d = parseNumber();
           return Json(d);
@@ -484,9 +571,11 @@ namespace cppkit::json
       };
 
       Json root = parse_value();
-      while (idx < s.size() && std::isspace((unsigned char) s[idx])) ++idx;
-      if (idx != s.size()) throw std::runtime_error("extra characters after JSON value");
+      while (idx < s.size() && std::isspace(static_cast<unsigned char>(s[idx])))
+        ++idx;
+      if (idx != s.size())
+        throw std::runtime_error("extra characters after JSON value");
       return root;
     }
   };
-}  // namespace cppkit::json
+} // namespace cppkit::json
