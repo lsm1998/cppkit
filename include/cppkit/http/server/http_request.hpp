@@ -46,6 +46,10 @@ namespace cppkit::http::server
     [[nodiscard]]
     std::string getParam(const std::string& key) const;
 
+    // 获取所有url param
+    [[nodiscard]]
+    std::unordered_map<std::string, std::string> getParams() const;
+
     // 获取请求头
     [[nodiscard]]
     std::string getHeader(const std::string& key) const;

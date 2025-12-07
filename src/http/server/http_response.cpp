@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
+#include "cppkit/define.hpp"
+
 namespace cppkit::http::server
 {
   void HttpResponseWriter::setStatusCode(const int statusCode)
@@ -53,7 +55,7 @@ namespace cppkit::http::server
     const size_t bodySize = body.size();
     while (bytesSent < bodySize)
     {
-      const size_t chunkSize = std::min(static_cast<size_t>(BUFFER_SIZE), bodySize - bytesSent);
+      const size_t chunkSize = std::min(static_cast<size_t>(DEFAULT_BUFFER_SIZE), bodySize - bytesSent);
       const ssize_t n = ::send(fd, &body[bytesSent], chunkSize, 0);
       if (n <= 0)
       {

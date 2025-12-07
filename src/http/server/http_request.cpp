@@ -20,8 +20,7 @@ namespace cppkit::http::server
       const ssize_t len = read(fd, buffer, BUFFER_SIZE);
       if (len <= 0)
       {
-        // throw std::runtime_error("Failed to read from socket.");
-        break;
+        throw std::runtime_error("Failed to read from socket.");
       }
 
       raw_request.append(buffer, len);
@@ -34,6 +33,7 @@ namespace cppkit::http::server
         return parse(fd, raw_request, raw_request.substr(header_end_pos));
       }
     }
+    return request;
   }
 
   HttpRequest HttpRequest::parse(const int fd, const std::string& raw, const std::string& extra_data)
@@ -173,6 +173,11 @@ namespace cppkit::http::server
   std::string HttpRequest::getParam(const std::string& key) const
   {
     return _params.at(key);
+  }
+
+  std::unordered_map<std::string, std::string> HttpRequest::getParams() const
+  {
+    return _params;
   }
 
   std::string HttpRequest::getHeader(const std::string& key) const

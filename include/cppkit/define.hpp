@@ -12,5 +12,5 @@ namespace cppkit
   constexpr int DEFAULT_TIMEOUT = 10;
 
   // 默认缓冲区大小
-  constexpr int DEFAULT_BUFFER_SIZE = 2;
+  constexpr int DEFAULT_BUFFER_SIZE = 4096;
 }
