@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace cppkit
 {
   // 默认监听端口

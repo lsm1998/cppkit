@@ -20,6 +20,7 @@ namespace cppkit::http::server
       return 0;
     });
     this->_server.start();
+    std::cout << "Started http server on " << this->_host << ":" << this->_port << std::endl;
     this->_loop.run();
   }
 

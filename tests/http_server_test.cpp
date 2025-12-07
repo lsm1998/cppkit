@@ -53,8 +53,6 @@ int main()
         res.write(result.dump());
       });
 
-  std::cout << "Starting server at " << server.getHost() << ":" << server.getPort() << std::endl;
-
   // start server
   server.start();
   return 0;
