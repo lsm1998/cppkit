@@ -135,6 +135,79 @@ namespace cppkit::json
       return std::get<array>(v).at(idx);
     }
 
+    // Assignment operators
+    Json& operator=(std::nullptr_t) noexcept
+    {
+      v = nullptr;
+      return *this;
+    }
+
+    Json& operator=(bool b) noexcept
+    {
+      v = b;
+      return *this;
+    }
+
+    Json& operator=(const int i) noexcept
+    {
+      v = static_cast<double>(i);
+      return *this;
+    }
+
+    Json& operator=(const long l) noexcept
+    {
+      v = static_cast<double>(l);
+      return *this;
+    }
+
+    Json& operator=(double d) noexcept
+    {
+      v = d;
+      return *this;
+    }
+
+    Json& operator=(const char* s)
+    {
+      v = std::string(s);
+      return *this;
+    }
+
+    Json& operator=(const std::string& s)
+    {
+      v = s;
+      return *this;
+    }
+
+    Json& operator=(std::string&& s)
+    {
+      v = std::move(s);
+      return *this;
+    }
+
+    Json& operator=(const array& a)
+    {
+      v = a;
+      return *this;
+    }
+
+    Json& operator=(array&& a)
+    {
+      v = std::move(a);
+      return *this;
+    }
+
+    Json& operator=(const object& o)
+    {
+      v = o;
+      return *this;
+    }
+
+    Json& operator=(object&& o)
+    {
+      v = std::move(o);
+      return *this;
+    }
+
     // Serialization
     [[nodiscard]]
     std::string dump(const bool pretty = false, const int indent_size = 2) const

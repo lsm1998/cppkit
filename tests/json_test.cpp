@@ -11,5 +11,14 @@ int main(int argc, char* argv[])
   {
     std::cout << json["name"].asString() << std::endl;
   }
+
+  auto obj = Json{};
+  obj["greeting"] = "Hello, JSON!";
+  obj["year"] = 2025;
+
+  obj["name"] = Json("bob");
+  obj["is_active"] = Json(true);
+
+  std::cout << obj.dump() << std::endl;
   return 0;
 }

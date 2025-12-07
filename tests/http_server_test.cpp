@@ -42,13 +42,13 @@ int main()
         res.setStatusCode(cppkit::http::HTTP_OK);
         res.setHeader("Content-Type", "application/json");
 
-        auto result = Json::makeObject();
-        result["status"] = Json(200);
+        auto result = Json{};
+        result["status"] = 200;
 
         if (auto data = Json::parse(std::string(body.begin(), body.end())); data.isObject())
         {
           auto obj = data.asObject();
-          result["message"] = Json(obj["name"].asString());
+          result["message"] = obj["name"].asString();
         }
         res.write(result.dump());
       });
