@@ -36,6 +36,8 @@ add_library(cppkit SHARED
         src/crypto/sha256.cpp
         src/crypto/sha512.cpp
         src/crypto/aes.cpp
+        src/websocket/server.cpp
+        src/websocket/client.cpp
         src/concurrency/wait_group.cpp
         src/concurrency/thread_pool.cpp
         src/concurrency/thread_group.cpp

@@ -13,11 +13,13 @@ namespace cppkit::event
     std::string ip;
     uint16_t port{};
     int fd{};
+    std::function<void(int, int)> cleanup;
 
   public:
     ConnInfo() = default;
 
-    ConnInfo(std::string ip, const uint16_t port, const int fd) : ip(std::move(ip)), port(port), fd(fd)
+    ConnInfo(std::string ip, const uint16_t port, const int fd, const std::function<void(int, int)>& cleanup)
+      : ip(std::move(ip)), port(port), fd(fd), cleanup(cleanup)
     {
     }
 
@@ -43,6 +45,9 @@ namespace cppkit::event
     [[nodiscard]]
     int getFd() const;
 
+    // 关闭连接
+    void close() const;
+
     // 是否同一个连接
     bool operator==(const ConnInfo& other) const noexcept;
   };
@@ -58,6 +63,7 @@ namespace cppkit::event
     using OnReadable = std::function<ssize_t(const ConnInfo& conn)>;
 
     TcpServer(EventLoop* loop, std::string addr, uint16_t port);
+
 
     TcpServer() = default;
 
@@ -96,13 +102,16 @@ namespace cppkit::event
     uint16_t getPort() const { return port_; }
 
   private:
-    EventLoop* loop_; // 事件循环指针
+    // 清理连接
+    void cleanup(ssize_t n, int cfd) const;
+
+    EventLoop* loop_{}; // 事件循环指针
 
     int listen_fd_ = -1; // 监听套接字文件描述符
 
     std::string addr_; // 监听地址
 
-    uint16_t port_; // 监听端口
+    uint16_t port_{}; // 监听端口
 
     OnConnection onConn_; // 连接回调函数
 

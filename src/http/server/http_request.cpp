@@ -83,7 +83,14 @@ namespace cppkit::http::server
         {
           std::string key = pair.substr(0, eqpos);
           std::string value = pair.substr(eqpos + 1);
-          request.query.at(key).push_back(value);
+          if (auto& it = request.query[key]; it.empty())
+          {
+            request.query[key] = {std::move(value)};
+          }
+          else
+          {
+            it.push_back(std::move(value));
+          }
         }
       }
     }

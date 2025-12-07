@@ -147,7 +147,14 @@ namespace cppkit::event
               strcpy(ipBuf, "unknown");
             }
 
-            connections_[c] = ConnInfo(ipBuf, port, c);
+            connections_[c] = ConnInfo(
+                ipBuf,
+                port,
+                c,
+                [this](const ssize_t n, const int cfd)
+                {
+                  this->cleanup(n, cfd);
+                });
 
             if (onConn_)
             {
@@ -162,7 +169,11 @@ namespace cppkit::event
                   if (onReadable_)
                   {
                     n = onReadable_(connections_[cfd]);
-                    goto Cleanup;
+                    if (n <= 0)
+                    {
+                      cleanup(n, cfd);
+                    }
+                    return;
                   }
                   char buf[DEFAULT_BUFFER_SIZE];
                   if (n = read(cfd, buf, sizeof(buf)); n > 0)
@@ -174,20 +185,7 @@ namespace cppkit::event
                   }
                   else
                   {
-                  Cleanup:
-                    if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
-                    {
-                      // 非阻塞下无数据，忽略
-                      return;
-                    }
-                    // 清理事件并关闭连接
-                    loop_->deleteFileEvent(cfd, AE_READABLE | AE_WRITABLE);
-                    close(cfd);
-                    if (onClose_)
-                    {
-                      onClose_(connections_[cfd]);
-                    }
-                    connections_.erase(cfd);
+                    cleanup(n, cfd);
                   }
                 });
           }
@@ -203,6 +201,24 @@ namespace cppkit::event
       close(listen_fd_);
     }
     listen_fd_ = -1;
+  }
+
+  void TcpServer::cleanup(const ssize_t n, const int cfd) const
+  {
+    // 检查是否是因为非阻塞无数据而忽略
+    if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+    {
+      return;
+    }
+
+    // 清理事件并关闭连接
+    loop_->deleteFileEvent(cfd, AE_READABLE | AE_WRITABLE);
+    close(cfd);
+    if (onClose_)
+    {
+      onClose_(connections_[cfd]);
+    }
+    connections_.erase(cfd);
   }
 
   std::string ConnInfo::getIp() const
@@ -233,6 +249,18 @@ namespace cppkit::event
   int ConnInfo::getFd() const
   {
     return this->fd;
+  }
+
+  void ConnInfo::close() const
+  {
+    if (this->cleanup)
+    {
+      this->cleanup(0, this->fd);
+    }
+    else
+    {
+      ::close(this->fd);
+    }
   }
 
   bool ConnInfo::operator==(const ConnInfo& other) const noexcept
