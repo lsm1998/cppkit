@@ -19,7 +19,7 @@ all: build
 build:
 	@echo "🔧 Building project with CMake..."
 	@mkdir -p $(BUILD_DIR)
-	@cd $(BUILD_DIR) && cmake $(CMAKE_FLAGS) ..
+	@cd $(BUILD_DIR) && cmake $(CMAKE_FLAGS) .. -DENABLE_TESTING=ON
 	@cmake --build $(BUILD_DIR) -- -j$$(nproc)
 	@echo "✅ Build complete."
 	@echo "➡️  Executables found:"
