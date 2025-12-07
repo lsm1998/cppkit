@@ -38,6 +38,7 @@ add_library(cppkit SHARED
         src/crypto/aes.cpp
         src/websocket/server.cpp
         src/websocket/client.cpp
+        src/websocket/conn.cpp
         src/concurrency/wait_group.cpp
         src/concurrency/thread_pool.cpp
         src/concurrency/thread_group.cpp

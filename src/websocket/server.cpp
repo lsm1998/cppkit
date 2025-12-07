@@ -30,42 +30,6 @@ namespace cppkit::websocket
     _onClose = std::move(handler);
   }
 
-  bool WSServer::send(const std::string& clientId, const std::string& message, const MessageType type)
-  {
-    return send(clientId, std::vector<uint8_t>(message.begin(), message.end()), type);
-  }
-
-  bool WSServer::send(const std::string& clientId, const std::vector<uint8_t>& message, const MessageType type)
-  {
-    const std::vector<uint8_t> frame = buildFrame(message, type);
-
-    // We cannot directly use clientId to find in connections_,
-    // but WSConnInfo should have it if needed. For now, we assume
-    // that clientId is stored in connections_ map - actually, need to fix this!
-
-    // TODO: Implement proper connection ID management
-
-    // For example purposes, iterate through connections
-    // Note: This is not efficient, need to fix connection ID mechanism
-
-    const event::ConnInfo* connInfo = nullptr;
-    for (const auto& val : event::connections_ | std::views::values)
-    {
-      if (val.getClientId() == clientId)
-      {
-        connInfo = &val;
-        break;
-      }
-    }
-
-    if (connInfo == nullptr)
-    {
-      return false;
-    }
-    const ssize_t sent = connInfo->send(frame.data(), frame.size());
-    return sent == static_cast<ssize_t>(frame.size());
-  }
-
   void WSServer::start()
   {
     // 设置回调函数
@@ -174,14 +138,20 @@ namespace cppkit::websocket
         }
 
         // 尝试解析帧
-        const size_t parsedBytes = parseFrame(std::vector(buffer.begin() + parsedOffset, buffer.end()), frame);
-        if (parsedBytes > 0)
+        if (const size_t parsedBytes = parseFrame(std::vector(buffer.begin() + parsedOffset, buffer.end()), frame);
+          parsedBytes > 0)
         {
           parsedOffset += parsedBytes;
 
           // 处理消息
           if (_onMessage)
           {
+            if (frame.opCode == MessageType::CLOSE)
+            {
+              // 关闭连接
+              connInfo.close();
+              return;
+            }
             WSConnInfo wsConnInfo(connInfo);
             _onMessage(wsConnInfo, frame.payload, frame.opCode);
           }
@@ -245,139 +215,6 @@ namespace cppkit::websocket
     ssize_t sent = connInfo.send(reinterpret_cast<const uint8_t*>(respStr.c_str()), respStr.size());
 
     return sent == static_cast<ssize_t>(respStr.size());
-  }
-
-  size_t WSServer::parseFrame(const std::vector<uint8_t>& data, Frame& frame)
-  {
-    if (data.size() < 2)
-    {
-      return 0;
-    }
-
-    size_t offset = 0;
-
-    // Parse FIN and Opcode
-    frame.fin = (data[offset] & 0x80) != 0;
-    frame.opCode = static_cast<MessageType>(data[offset] & 0x0F);
-    offset++;
-
-    // Parse Mask and Payload Length
-    frame.mask = (data[offset] & 0x80) != 0;
-    uint8_t payloadLenByte = data[offset] & 0x7F;
-    offset++;
-
-    if (payloadLenByte <= 125)
-    {
-      frame.payloadLength = payloadLenByte;
-    }
-    else if (payloadLenByte == 126)
-    {
-      if (data.size() < offset + 2)
-      {
-        return 0;
-      }
-      frame.payloadLength = (static_cast<uint16_t>(data[offset]) << 8) | static_cast<uint16_t>(data[offset + 1]);
-      offset += 2;
-    }
-    else
-    {
-      // 127
-      if (data.size() < offset + 8)
-      {
-        return 0;
-      }
-      frame.payloadLength = 0;
-      for (int i = 0; i < 8; ++i)
-      {
-        frame.payloadLength = frame.payloadLength << 8 | static_cast<uint64_t>(data[offset + i]);
-      }
-      offset += 8;
-    }
-
-    // Parse Masking Key
-    if (frame.mask)
-    {
-      if (data.size() < offset + 4)
-      {
-        return 0;
-      }
-      std::memcpy(frame.maskingKey, &data[offset], 4);
-      offset += 4;
-    }
-
-    // Check if payload is available
-    if (data.size() < offset + frame.payloadLength)
-    {
-      return 0;
-    }
-
-    // Parse Payload
-    frame.payload.resize(frame.payloadLength);
-    if (frame.payloadLength > 0)
-    {
-      std::memcpy(frame.payload.data(), &data[offset], frame.payloadLength);
-
-      // Unmask payload if needed
-      if (frame.mask)
-      {
-        for (uint64_t i = 0; i < frame.payloadLength; ++i)
-        {
-          frame.payload[i] ^= frame.maskingKey[i % 4];
-        }
-      }
-    }
-
-    // 返回解析的总字节数：offset + payloadLength
-    return offset + frame.payloadLength;
-  }
-
-  std::vector<uint8_t> WSServer::buildFrame(const std::vector<uint8_t>& payload,
-      MessageType type,
-      bool fin,
-      bool mask)
-  {
-    std::vector<uint8_t> frame;
-
-    // FIN and Opcode
-    uint8_t byte = 0;
-    if (fin)
-    {
-      byte |= 0x80;
-    }
-    byte |= static_cast<uint8_t>(type) & 0x0F;
-    frame.push_back(byte);
-
-    // Mask and Payload Length
-    uint8_t lenByte = mask ? 0x80 : 0x00;
-    uint64_t payloadLength = payload.size();
-
-    if (payloadLength <= 125)
-    {
-      lenByte |= static_cast<uint8_t>(payloadLength);
-      frame.push_back(lenByte);
-    }
-    else if (payloadLength <= 65535)
-    {
-      lenByte |= 126;
-      frame.push_back(lenByte);
-      frame.push_back(static_cast<uint8_t>((payloadLength >> 8) & 0xFF));
-      frame.push_back(static_cast<uint8_t>(payloadLength & 0xFF));
-    }
-    else
-    {
-      lenByte |= 127;
-      frame.push_back(lenByte);
-      // Big-endian
-      for (int i = 7; i >= 0; --i)
-      {
-        frame.push_back(static_cast<uint8_t>((payloadLength >> (i * 8)) & 0xFF));
-      }
-    }
-
-    // Payload
-    frame.insert(frame.end(), payload.begin(), payload.end());
-
-    return frame;
   }
 
   void WSServer::onTcpClose(const event::ConnInfo& connInfo)

@@ -51,4 +51,136 @@ namespace cppkit::websocket
 
     std::vector<uint8_t> buffer; // 数据缓冲区
   };
+
+  inline std::vector<uint8_t> buildFrame(const std::vector<uint8_t>& payload,
+      MessageType type,
+      const bool fin = true,
+      const bool mask = false)
+  {
+    std::vector<uint8_t> frame;
+
+    // FIN and Opcode
+    uint8_t byte = 0;
+    if (fin)
+    {
+      byte |= 0x80;
+    }
+    byte |= static_cast<uint8_t>(type) & 0x0F;
+    frame.push_back(byte);
+
+    // Mask and Payload Length
+    uint8_t lenByte = mask ? 0x80 : 0x00;
+
+    if (const uint64_t payloadLength = payload.size(); payloadLength <= 125)
+    {
+      lenByte |= static_cast<uint8_t>(payloadLength);
+      frame.push_back(lenByte);
+    }
+    else if (payloadLength <= 65535)
+    {
+      lenByte |= 126;
+      frame.push_back(lenByte);
+      frame.push_back(static_cast<uint8_t>(payloadLength >> 8 & 0xFF));
+      frame.push_back(static_cast<uint8_t>(payloadLength & 0xFF));
+    }
+    else
+    {
+      lenByte |= 127;
+      frame.push_back(lenByte);
+      // Big-endian
+      for (int i = 7; i >= 0; --i)
+      {
+        frame.push_back(static_cast<uint8_t>(payloadLength >> (i * 8) & 0xFF));
+      }
+    }
+
+    // Payload
+    frame.insert(frame.end(), payload.begin(), payload.end());
+
+    return frame;
+  }
+
+  inline size_t parseFrame(const std::vector<uint8_t>& data, Frame& frame)
+  {
+    if (data.size() < 2)
+    {
+      return 0;
+    }
+
+    size_t offset = 0;
+
+    // Parse FIN and Opcode
+    frame.fin = (data[offset] & 0x80) != 0;
+    frame.opCode = static_cast<MessageType>(data[offset] & 0x0F);
+    offset++;
+
+    // Parse Mask and Payload Length
+    frame.mask = (data[offset] & 0x80) != 0;
+    uint8_t payloadLenByte = data[offset] & 0x7F;
+    offset++;
+
+    if (payloadLenByte <= 125)
+    {
+      frame.payloadLength = payloadLenByte;
+    }
+    else if (payloadLenByte == 126)
+    {
+      if (data.size() < offset + 2)
+      {
+        return 0;
+      }
+      frame.payloadLength = (static_cast<uint16_t>(data[offset]) << 8) | static_cast<uint16_t>(data[offset + 1]);
+      offset += 2;
+    }
+    else
+    {
+      // 127
+      if (data.size() < offset + 8)
+      {
+        return 0;
+      }
+      frame.payloadLength = 0;
+      for (int i = 0; i < 8; ++i)
+      {
+        frame.payloadLength = frame.payloadLength << 8 | static_cast<uint64_t>(data[offset + i]);
+      }
+      offset += 8;
+    }
+
+    // Parse Masking Key
+    if (frame.mask)
+    {
+      if (data.size() < offset + 4)
+      {
+        return 0;
+      }
+      std::memcpy(frame.maskingKey, &data[offset], 4);
+      offset += 4;
+    }
+
+    // Check if payload is available
+    if (data.size() < offset + frame.payloadLength)
+    {
+      return 0;
+    }
+
+    // Parse Payload
+    frame.payload.resize(frame.payloadLength);
+    if (frame.payloadLength > 0)
+    {
+      std::memcpy(frame.payload.data(), &data[offset], frame.payloadLength);
+
+      // Unmask payload if needed
+      if (frame.mask)
+      {
+        for (uint64_t i = 0; i < frame.payloadLength; ++i)
+        {
+          frame.payload[i] ^= frame.maskingKey[i % 4];
+        }
+      }
+    }
+
+    // 返回解析的总字节数：offset + payloadLength
+    return offset + frame.payloadLength;
+  }
 } // namespace cppkit::websocket
