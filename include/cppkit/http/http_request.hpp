@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.hpp"
+#include <cstdint>
 #include <map>
 #include <sstream>
 #include <string>

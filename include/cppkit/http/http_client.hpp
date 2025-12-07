@@ -6,7 +6,6 @@
 #include <arpa/inet.h>
 #include <map>
 #include <string>
-#include <utility>
 #include <vector>
 #include <cstring>
 #include <stdexcept>

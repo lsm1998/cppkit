@@ -2,6 +2,7 @@
 
 #include <string>
 #include <unistd.h>
+#include <chrono>
 
 namespace cppkit::http
 {
@@ -9,8 +10,11 @@ namespace cppkit::http
   {
   public:
     int fd{}; // 文件描述符
+
     std::chrono::steady_clock::time_point lastUsed; // 上次使用时间
+
     std::string host; // 连接的主机地址
+    
     int port{}; // 连接的端口号
 
     PoolConnection(const int fd, std::string host, const int port)

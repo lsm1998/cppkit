@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string_view>
 #include <thread>
+#include <vector>
 
 void printWork(const std::string_view& msg)
 {

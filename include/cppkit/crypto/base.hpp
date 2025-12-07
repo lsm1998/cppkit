@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <cstdint>
 
 namespace cppkit::crypto
 {

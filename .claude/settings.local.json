@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./wait_group_test:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
