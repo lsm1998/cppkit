@@ -119,23 +119,31 @@ int main()
 ### Crypto
 
 ```cpp
-#include <cppkit/crypto/sha256.hpp>
-#include <cppkit/crypto/aes.hpp>
-
-// SHA256
-std::string hash = crypto::sha256::hash("hello world");
+#include <cppkit/crypto/crypto.hpp>
 
 // AES encryption/decryption
-std::string key = "0123456789abcdef";
+std::string AESkey = "0123456789abcdef";
 std::string iv = "abcdef9876543210";
-std::string encrypted = crypto::aes::encrypt("secret data", key, iv, crypto::aes::mode::CBC);
-std::string decrypted = crypto::aes::decrypt(encrypted, key, iv, crypto::aes::mode::CBC);
+auto key_bytes = reinterpret_cast<const uint8_t*>(AESkey.data());
+const auto* iv_bytes = reinterpret_cast<const uint8_t*>(iv.data());
+
+// Encrypt CBC
+std::vector<uint8_t> cipher = cppkit::crypto::AES_Encrypt_CBC(
+      std::vector<uint8_t>(plaintext.begin(), plaintext.end()),
+      key_bytes,
+      iv_bytes);
+std::cout << "encryption data (hex): " << cppkit::crypto::toHex(cipher) << "\n";
+
+// Decrypt CBC
+std::vector<uint8_t> decrypted = cppkit::crypto::AES_Decrypt_CBC(cipher, key_bytes, iv_bytes);
+std::string recovered(decrypted.begin(), decrypted.end());
+std::cout << "decryption data: " << recovered << "\n";
 ```
 
 ### HTTP Server
 
 ```cpp
-#include "cppkit/http/server/http_server.hpp"
+#include <cppkit/http/server/http_server.hpp>
 #include <iostream>
 
 int main()
@@ -184,6 +192,62 @@ int main()
   // start server
   server.start();
   return 0;
+}
+```
+
+### Websocket Server
+
+```cpp
+#include <cppkit/websocket/server.hpp>
+#include <iostream>
+
+int main()
+{
+  using namespace cppkit::websocket;
+  using namespace cppkit::http::server;
+
+  // create websocket server
+  WSServer server("127.0.0.1", 8899);
+
+  // map to hold active clients
+  auto clientMap = std::unordered_map<std::string, std::shared_ptr<WSConnInfo>>();
+
+  // on new connection
+  server.setOnConnect([&](const HttpRequest& request, const WSConnInfo& connInfo)
+  {
+    // simple token authentication
+    if (request.getQuery("token") != "key666")
+    {
+      connInfo.close();
+      return;
+    }
+    clientMap[connInfo.getClientId()] = std::make_shared<WSConnInfo>(connInfo);
+    std::cout << "client join:" << connInfo.getClientId() << std::endl;
+  });
+
+  server.setOnMessage([&clientMap](const WSConnInfo& connInfo, const std::vector<uint8_t>& message, MessageType type)
+  {
+    // broadcast received message to all clients
+    const std::string msg(message.begin(), message.end());
+    std::cout << "Received message from " << connInfo.getClientId() << ": " << msg << std::endl;
+    for (const auto& clientId : clientMap | std::views::keys)
+    {
+      if (connInfo.sendTextMessage("recv:" + msg) < 0)
+      {
+        perror("sendTextMessage fail");
+      }
+    }
+  });
+
+  // on client disconnect
+  server.setOnClose([&](const WSConnInfo& connInfo)
+  {
+    clientMap.erase(connInfo.getClientId());
+    std::cout << "client exit:" << connInfo.getClientId() << std::endl;
+  });
+
+  // start server
+  server.start();
 }
 ```
 
