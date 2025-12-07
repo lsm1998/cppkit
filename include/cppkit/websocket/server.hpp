@@ -53,7 +53,6 @@ namespace cppkit::websocket
     // TCP 事件处理
     void onTcpConnect(const event::ConnInfo& connInfo);
     void onTcpMessage(const event::ConnInfo& connInfo, const std::vector<uint8_t>& data);
-    void onTcpClose(const event::ConnInfo& connInfo);
 
     event::EventLoop _loop; // Event loop
 

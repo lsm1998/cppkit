@@ -217,8 +217,7 @@ namespace cppkit::websocket
     return sent == static_cast<ssize_t>(respStr.size());
   }
 
-  void WSServer::onTcpClose(const event::ConnInfo& connInfo)
-  {
-    // connInfo.close();
-  }
+  // void WSServer::onTcpClose(const event::ConnInfo& connInfo)
+  // {
+  // }
 }
