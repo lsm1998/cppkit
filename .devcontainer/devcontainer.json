@@ -1,0 +1,37 @@
+{
+    "name": "C++23 Dev Container",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "." // 指向当前目录以包含 Dockerfile
+    },
+    "runArgs": [
+        "--cap-add=SYS_PTRACE", // 允许调试
+        "--security-opt", "seccomp=unconfined", // 取消 seccomp 限制
+        "--network=host" // 使用主机网络
+    ],
+    "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash",
+        "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+        "cmake.configureOnOpen": true,
+        "cmake.generator": "Ninja",
+        "cmake.buildDirectory": "${workspaceFolder}/build",
+        "clangd.arguments": [
+            "--header-insertion=never",
+            "--background-index",
+            "--clang-tidy"
+        ]
+    },
+    "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "twxs.cmake",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-vscode.cpptools-extension-pack",
+        "ms-azuretools.vscode-docker"
+    ],
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+    ],
+    "remoteUser": "root",
+    "workspaceFolder": "/workspace"
+}
