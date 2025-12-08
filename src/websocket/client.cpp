@@ -13,12 +13,12 @@
 
 namespace cppkit::websocket
 {
-  WSClient::~WSClient()
+  WebSocketClient::~WebSocketClient()
   {
     disconnect();
   }
 
-  bool WSClient::connect(const std::string& url)
+  bool WebSocketClient::connect(const std::string& url)
   {
     _url = url;
     size_t schemeEnd = url.find("://");
@@ -161,7 +161,7 @@ namespace cppkit::websocket
     return true;
   }
 
-  void WSClient::disconnect()
+  void WebSocketClient::disconnect()
   {
     if (_socketFd >= 0)
     {
@@ -185,12 +185,12 @@ namespace cppkit::websocket
     }
   }
 
-  bool WSClient::send(const std::string& message, const MessageType type) const
+  bool WebSocketClient::send(const std::string& message, const MessageType type) const
   {
     return send(std::vector<uint8_t>(message.begin(), message.end()), type);
   }
 
-  bool WSClient::send(const std::vector<uint8_t>& message, const MessageType type) const
+  bool WebSocketClient::send(const std::vector<uint8_t>& message, const MessageType type) const
   {
     if (_state != ClientState::CONNECTED || _socketFd < 0)
     {
@@ -203,37 +203,37 @@ namespace cppkit::websocket
     return sent == static_cast<ssize_t>(frame.size());
   }
 
-  void WSClient::setOnConnect(OnConnectHandler handler)
+  void WebSocketClient::setOnConnect(OnConnectHandler handler)
   {
     _onConnect = std::move(handler);
   }
 
-  void WSClient::setOnMessage(OnMessageHandler handler)
+  void WebSocketClient::setOnMessage(OnMessageHandler handler)
   {
     _onMessage = std::move(handler);
   }
 
-  void WSClient::setOnClose(OnCloseHandler handler)
+  void WebSocketClient::setOnClose(OnCloseHandler handler)
   {
     _onClose = std::move(handler);
   }
 
-  void WSClient::setOnError(OnErrorHandler handler)
+  void WebSocketClient::setOnError(OnErrorHandler handler)
   {
     _onError = std::move(handler);
   }
 
-  bool WSClient::isConnected() const
+  bool WebSocketClient::isConnected() const
   {
     return _state == ClientState::CONNECTED;
   }
 
-  bool WSClient::handleHandshake(const std::vector<uint8_t>& data) const
+  bool WebSocketClient::handleHandshake(const std::vector<uint8_t>& data) const
   {
-    auto response = http::HttpResponse::parse(data);
+    const auto response = http::HttpResponse::parse(data);
 
     // 是否包含 101 Switching Protocols 状态码
-    if (response.getStatusCode() != 101)
+    if (response.getStatusCode() != http::HTTP_SWITCHING_PROTOCOLS)
     {
       return false;
     }

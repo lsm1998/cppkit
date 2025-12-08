@@ -6,12 +6,12 @@
 namespace cppkit::websocket
 {
   // WebSocket 连接信息
-  class WSConnInfo
+  class ConnInfo
   {
     const event::ConnInfo& _connInfo;
 
   public:
-    explicit WSConnInfo(const event::ConnInfo& connInfo) : _connInfo(connInfo)
+    explicit ConnInfo(const event::ConnInfo& connInfo) : _connInfo(connInfo)
     {
     }
 

@@ -14,7 +14,7 @@ namespace cppkit::http::server
   public:
     explicit HttpServer(std::string host = "localhost", const int port = 80) : _port(port), _host(std::move(host))
     {
-    };
+    }
 
     void start();
 

@@ -6,22 +6,22 @@ int main()
   using namespace cppkit::websocket;
   using namespace cppkit::http::server;
 
-  WSServer server("127.0.0.1", 8899);
+  WebSocketServer server("127.0.0.1", 8899);
 
-  auto clientMap = std::unordered_map<std::string, std::shared_ptr<WSConnInfo>>();
+  auto clientMap = std::unordered_map<std::string, std::shared_ptr<ConnInfo>>();
 
-  server.setOnConnect([&](const HttpRequest& request, const WSConnInfo& connInfo)
+  server.setOnConnect([&](const HttpRequest& request, const ConnInfo& connInfo)
   {
     if (request.getQuery("token") != "yyds")
     {
       connInfo.close();
       return;
     }
-    clientMap[connInfo.getClientId()] = std::make_shared<WSConnInfo>(connInfo);
+    clientMap[connInfo.getClientId()] = std::make_shared<ConnInfo>(connInfo);
     std::cout << "客户端加入:" << connInfo.getClientId() << std::endl;
   });
 
-  server.setOnMessage([&clientMap](const WSConnInfo& connInfo, const std::vector<uint8_t>& message, MessageType type)
+  server.setOnMessage([&clientMap](const ConnInfo& connInfo, const std::vector<uint8_t>& message, MessageType type)
   {
     // 广播消息给所有客户端
     const std::string msg(message.begin(), message.end());
@@ -35,7 +35,7 @@ int main()
     }
   });
 
-  server.setOnClose([&](const WSConnInfo& connInfo)
+  server.setOnClose([&](const ConnInfo& connInfo)
   {
     clientMap.erase(connInfo.getClientId());
     std::cout << "客户端离开:" << connInfo.getClientId() << std::endl;

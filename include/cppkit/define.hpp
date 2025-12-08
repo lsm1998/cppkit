@@ -32,8 +32,8 @@ namespace cppkit
 
   namespace websocket
   {
-    class WsClient;
+    class WebSocketClient;
 
-    class WsServer;
+    class WebSocketServer;
   }
 }

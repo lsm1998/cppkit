@@ -14,19 +14,19 @@
 namespace cppkit::websocket
 {
   // WebSocket 服务器
-  class WSServer
+  class WebSocketServer
   {
   public:
-    using Ptr = std::shared_ptr<WSServer>;
+    using Ptr = std::shared_ptr<WebSocketServer>;
 
-    explicit WSServer(const std::string& host = "localhost", uint16_t port = 8080);
+    explicit WebSocketServer(const std::string& host = "localhost", uint16_t port = 8080);
 
     // Handlers
-    using OnConnectHandler = std::function<void(const http::server::HttpRequest&, const WSConnInfo&)>;
+    using OnConnectHandler = std::function<void(const http::server::HttpRequest&, const ConnInfo&)>;
 
-    using OnMessageHandler = std::function<void(const WSConnInfo&, const std::vector<uint8_t>&, MessageType)>;
+    using OnMessageHandler = std::function<void(const ConnInfo&, const std::vector<uint8_t>&, MessageType)>;
 
-    using OnCloseHandler = std::function<void(const WSConnInfo&)>;
+    using OnCloseHandler = std::function<void(const ConnInfo&)>;
 
     void setOnConnect(OnConnectHandler handler);
 
@@ -44,7 +44,7 @@ namespace cppkit::websocket
 
     [[nodiscard]] int getPort() const;
 
-    ~WSServer();
+    ~WebSocketServer();
 
   private:
     // 处理握手请求

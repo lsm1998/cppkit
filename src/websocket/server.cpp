@@ -8,29 +8,29 @@
 
 namespace cppkit::websocket
 {
-  WSServer::WSServer(const std::string& host, const uint16_t port)
+  WebSocketServer::WebSocketServer(const std::string& host, const uint16_t port)
     : _tcpServer(&_loop, host, port), _host(host), _port(port)
   {
   }
 
-  WSServer::~WSServer() = default;
+  WebSocketServer::~WebSocketServer() = default;
 
-  void WSServer::setOnConnect(OnConnectHandler handler)
+  void WebSocketServer::setOnConnect(OnConnectHandler handler)
   {
     _onConnect = std::move(handler);
   }
 
-  void WSServer::setOnMessage(OnMessageHandler handler)
+  void WebSocketServer::setOnMessage(OnMessageHandler handler)
   {
     _onMessage = std::move(handler);
   }
 
-  void WSServer::setOnClose(OnCloseHandler handler)
+  void WebSocketServer::setOnClose(OnCloseHandler handler)
   {
     _onClose = std::move(handler);
   }
 
-  void WSServer::start()
+  void WebSocketServer::start()
   {
     // 设置回调函数
     _tcpServer.setOnConnection([this](const event::ConnInfo& connInfo)
@@ -52,7 +52,7 @@ namespace cppkit::websocket
 
       if (_onClose)
       {
-        const WSConnInfo wsConnInfo(connInfo);
+        const ConnInfo wsConnInfo(connInfo);
         _onClose(wsConnInfo);
       }
     });
@@ -62,30 +62,30 @@ namespace cppkit::websocket
     _loop.run();
   }
 
-  void WSServer::stop()
+  void WebSocketServer::stop()
   {
     _loop.stop();
     _tcpServer.stop();
   }
 
-  std::string WSServer::getHost() const
+  std::string WebSocketServer::getHost() const
   {
     return _host;
   }
 
-  int WSServer::getPort() const
+  int WebSocketServer::getPort() const
   {
     return _port;
   }
 
-  void WSServer::onTcpConnect(const event::ConnInfo& connInfo)
+  void WebSocketServer::onTcpConnect(const event::ConnInfo& connInfo)
   {
     // 初始状态为握手中
     const std::string clientId = connInfo.getClientId();
     _connStates[clientId] = ConnData{ConnState::HAND_SHAKING, {}};
   }
 
-  void WSServer::onTcpMessage(const event::ConnInfo& connInfo, const std::vector<uint8_t>& data)
+  void WebSocketServer::onTcpMessage(const event::ConnInfo& connInfo, const std::vector<uint8_t>& data)
   {
     const std::string clientId = connInfo.getClientId();
     const auto it = _connStates.find(clientId);
@@ -115,7 +115,7 @@ namespace cppkit::websocket
           {
             const auto req =
                 http::server::HttpRequest::parse(connInfo.getFd(), std::string(buffer.begin(), buffer.end()), "");
-            _onConnect(req, WSConnInfo(connInfo));
+            _onConnect(req, ConnInfo(connInfo));
           }
 
           buffer.clear();
@@ -152,7 +152,7 @@ namespace cppkit::websocket
               connInfo.close();
               return;
             }
-            WSConnInfo wsConnInfo(connInfo);
+            ConnInfo wsConnInfo(connInfo);
             _onMessage(wsConnInfo, frame.payload, frame.opCode);
           }
         }
@@ -177,7 +177,7 @@ namespace cppkit::websocket
     }
   }
 
-  bool WSServer::handleHandshake(const event::ConnInfo& connInfo, const std::vector<uint8_t>& data)
+  bool WebSocketServer::handleHandshake(const event::ConnInfo& connInfo, const std::vector<uint8_t>& data)
   {
     std::string request(reinterpret_cast<const char*>(data.data()), data.size());
 

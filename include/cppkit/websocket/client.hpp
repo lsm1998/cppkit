@@ -9,7 +9,7 @@
 namespace cppkit::websocket
 {
   // WebSocket client
-  class WSClient
+  class WebSocketClient
   {
   public:
     using OnConnectHandler = std::function<void()>;
@@ -17,13 +17,15 @@ namespace cppkit::websocket
     using OnCloseHandler = std::function<void()>;
     using OnErrorHandler = std::function<void(const std::string&)>;
 
-    WSClient() = default;
+    WebSocketClient() = default;
 
-    ~WSClient();
+    ~WebSocketClient();
 
-    // Connection
+    // 连接服务器
+    [[nodiscard]]
     bool connect(const std::string& url);
 
+    // 断开连接
     void disconnect();
 
     // 发送文本消息

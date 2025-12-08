@@ -11,7 +11,7 @@ namespace cppkit::http
   class HttpResponse
   {
     friend HttpClient;
-    friend websocket::WSClient;
+    friend websocket::WebSocketClient;
 
     int statusCode = 0;
     std::map<std::string, std::string> headers;

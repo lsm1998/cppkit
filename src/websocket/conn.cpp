@@ -3,32 +3,32 @@
 
 namespace cppkit::websocket
 {
-  std::string WSConnInfo::getClientId() const
+  std::string ConnInfo::getClientId() const
   {
     return _connInfo.getClientId();
   }
 
-  void WSConnInfo::close() const
+  void ConnInfo::close() const
   {
     _connInfo.close();
   }
 
-  const event::ConnInfo& WSConnInfo::getRawConnInfo() const
+  const event::ConnInfo& ConnInfo::getRawConnInfo() const
   {
     return _connInfo;
   }
 
-  ssize_t WSConnInfo::sendTextMessage(const std::string& message) const
+  ssize_t ConnInfo::sendTextMessage(const std::string& message) const
   {
     return sendMessage(std::vector<uint8_t>(message.begin(), message.end()), MessageType::TEXT);
   }
 
-  ssize_t WSConnInfo::sendBinaryMessage(const std::vector<uint8_t>& message) const
+  ssize_t ConnInfo::sendBinaryMessage(const std::vector<uint8_t>& message) const
   {
     return sendMessage(message, MessageType::BINARY);
   }
 
-  ssize_t WSConnInfo::sendMessage(const std::vector<uint8_t>& message, const MessageType type) const
+  ssize_t ConnInfo::sendMessage(const std::vector<uint8_t>& message, const MessageType type) const
   {
     const auto body = buildFrame(message, type);
     return _connInfo.send(body.data(), body.size());

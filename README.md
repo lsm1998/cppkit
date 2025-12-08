@@ -207,13 +207,13 @@ int main()
   using namespace cppkit::http::server;
 
   // create websocket server
-  WSServer server("127.0.0.1", 8899);
+  WebSocketServer server("127.0.0.1", 8899);
 
   // map to hold active clients
-  auto clientMap = std::unordered_map<std::string, std::shared_ptr<WSConnInfo>>();
+  auto clientMap = std::unordered_map<std::string, std::shared_ptr<ConnInfo>>();
 
   // on new connection
-  server.setOnConnect([&](const HttpRequest& request, const WSConnInfo& connInfo)
+  server.setOnConnect([&](const HttpRequest& request, const ConnInfo& connInfo)
   {
     // simple token authentication
     if (request.getQuery("token") != "key666")
@@ -221,11 +221,11 @@ int main()
       connInfo.close();
       return;
     }
-    clientMap[connInfo.getClientId()] = std::make_shared<WSConnInfo>(connInfo);
+    clientMap[connInfo.getClientId()] = std::make_shared<ConnInfo>(connInfo);
     std::cout << "client join:" << connInfo.getClientId() << std::endl;
   });
 
-  server.setOnMessage([&clientMap](const WSConnInfo& connInfo, const std::vector<uint8_t>& message, MessageType type)
+  server.setOnMessage([&clientMap](const ConnInfo& connInfo, const std::vector<uint8_t>& message, MessageType type)
   {
     // broadcast received message to all clients
     const std::string msg(message.begin(), message.end());
@@ -240,7 +240,7 @@ int main()
   });
 
   // on client disconnect
-  server.setOnClose([&](const WSConnInfo& connInfo)
+  server.setOnClose([&](const ConnInfo& connInfo)
   {
     clientMap.erase(connInfo.getClientId());
     std::cout << "client exit:" << connInfo.getClientId() << std::endl;

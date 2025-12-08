@@ -5,6 +5,9 @@
 
 namespace cppkit::http
 {
+  constexpr int HTTP_CONTINUE = 100;
+  constexpr int HTTP_SWITCHING_PROTOCOLS = 101;
+  constexpr int HTTP_PROCESSING = 102;
   constexpr int HTTP_OK = 200;
   constexpr int HTTP_CREATED = 201;
   constexpr int HTTP_ACCEPTED = 202;
@@ -20,6 +23,9 @@ namespace cppkit::http
 
   // 定义HTTP状态码映射
   static std::unordered_map<int, std::string> HTTP_STATUS_MAP = {
+      {HTTP_CONTINUE, "Continue"},
+      {HTTP_SWITCHING_PROTOCOLS, "Switching Protocols"},
+      {HTTP_PROCESSING, "Processing"},
       {HTTP_OK, "OK"},
       {HTTP_CREATED, "Created"},
       {HTTP_ACCEPTED, "Accepted"},
