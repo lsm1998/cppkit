@@ -3,7 +3,7 @@
 
 namespace cppkit::http
 {
-  std::vector<uint8_t> HttpRequest::buildRequestData(
+  std::vector<uint8_t> HttpRequest::build(
       const std::string& host,
       const std::string& path,
       const int port,

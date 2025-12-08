@@ -8,6 +8,9 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 
+#include "cppkit/random.hpp"
+#include "cppkit/http/http_response.hpp"
+
 namespace cppkit::websocket
 {
   WSClient::~WSClient()
@@ -17,11 +20,7 @@ namespace cppkit::websocket
 
   bool WSClient::connect(const std::string& url)
   {
-    // Simple URL parsing
-    // Example: ws://localhost:8080/path or wss://localhost:8080/path
-
     _url = url;
-
     size_t schemeEnd = url.find("://");
     if (schemeEnd == std::string::npos)
     {
@@ -107,13 +106,16 @@ namespace cppkit::websocket
 
     _state = ClientState::CONNECTING;
 
+    // 生成 Sec-WebSocket-Key
+    secWebSocketKey = Random::randomString(16, std::string(lowerChars) + upperChars + digitChars);
+
     // Send WebSocket handshake
     std::stringstream handshake;
     handshake << "GET " << _path << " HTTP/1.1\r\n";
     handshake << "Host: " << _host << ":" << _port << "\r\n";
     handshake << "Upgrade: websocket\r\n";
     handshake << "Connection: Upgrade\r\n";
-    handshake << "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n";
+    handshake << "Sec-WebSocket-Key: " << secWebSocketKey << "\r\n";
     handshake << "Sec-WebSocket-Version: 13\r\n\r\n";
 
     std::string handshakeStr = handshake.str();
@@ -128,7 +130,7 @@ namespace cppkit::websocket
     }
 
     // Read response
-    char buffer[1024] = {0};
+    char buffer[1024] = {};
     ssize_t readBytes = recv(_socketFd, buffer, sizeof(buffer) - 1, 0);
     if (readBytes <= 0)
     {
@@ -183,12 +185,12 @@ namespace cppkit::websocket
     }
   }
 
-  bool WSClient::send(const std::string& message, MessageType type)
+  bool WSClient::send(const std::string& message, const MessageType type) const
   {
     return send(std::vector<uint8_t>(message.begin(), message.end()), type);
   }
 
-  bool WSClient::send(const std::vector<uint8_t>& message, MessageType type)
+  bool WSClient::send(const std::vector<uint8_t>& message, const MessageType type) const
   {
     if (_state != ClientState::CONNECTED || _socketFd < 0)
     {
@@ -226,165 +228,31 @@ namespace cppkit::websocket
     return _state == ClientState::CONNECTED;
   }
 
-  bool WSClient::handleHandshake(const std::vector<uint8_t>& data)
+  bool WSClient::handleHandshake(const std::vector<uint8_t>& data) const
   {
-    std::string response(reinterpret_cast<const char*>(data.data()), data.size());
+    auto response = http::HttpResponse::parse(data);
 
-    // Check for successful status code
-    if (response.find("HTTP/1.1 101 Switching Protocols") == std::string::npos)
+    // 是否包含 101 Switching Protocols 状态码
+    if (response.getStatusCode() != 101)
     {
       return false;
     }
 
-    // Check Upgrade header
-    if (response.find("Upgrade: websocket") == std::string::npos &&
-        response.find("upgrade: websocket") == std::string::npos)
+    // 是否包含 Upgrade: websocket 头
+    if (response.getHeader("Upgrade") != "websocket")
     {
       return false;
     }
 
+    // 校验 Sec-WebSocket-Accept 头
+    const std::string expectedKey = secWebSocketKey;
+    const std::string magicString = expectedKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    const auto sha1Binary = crypto::SHA1::shaBinary(magicString);
+    const std::vector sha1Bytes(sha1Binary.begin(), sha1Binary.end());
+    if (const std::string accept = crypto::Base64::encode(sha1Bytes); response.getHeader("Sec-WebSocket-Accept") != accept)
+    {
+      return false;
+    }
     return true;
-  }
-
-  bool WSClient::parseFrame(const std::vector<uint8_t>& data, Frame& frame)
-  {
-    // Same as server's parseFrame method
-    if (data.size() < 2)
-    {
-      return false;
-    }
-
-    size_t offset = 0;
-
-    // Parse FIN and Opcode
-    frame.fin = (data[offset] & 0x80) != 0;
-    frame.opCode = static_cast<MessageType>(data[offset] & 0x0F);
-    offset++;
-
-    // Parse Mask and Payload Length
-    frame.mask = (data[offset] & 0x80) != 0;
-    uint8_t payloadLenByte = data[offset] & 0x7F;
-    offset++;
-
-    if (payloadLenByte <= 125)
-    {
-      frame.payloadLength = payloadLenByte;
-    }
-    else if (payloadLenByte == 126)
-    {
-      if (data.size() < offset + 2)
-      {
-        return false;
-      }
-      frame.payloadLength = (static_cast<uint16_t>(data[offset]) << 8) | static_cast<uint16_t>(data[offset + 1]);
-      offset += 2;
-    }
-    else
-    {
-      // 127
-      if (data.size() < offset + 8)
-      {
-        return false;
-      }
-      frame.payloadLength = 0;
-      for (int i = 0; i < 8; ++i)
-      {
-        frame.payloadLength = (frame.payloadLength << 8) | static_cast<uint64_t>(data[offset + i]);
-      }
-      offset += 8;
-    }
-
-    // Parse Masking Key
-    if (frame.mask)
-    {
-      if (data.size() < offset + 4)
-      {
-        return false;
-      }
-      std::memcpy(frame.maskingKey, &data[offset], 4);
-      offset += 4;
-    }
-
-    // Check if payload is available
-    if (data.size() < offset + frame.payloadLength)
-    {
-      return false;
-    }
-
-    // Parse Payload
-    frame.payload.resize(frame.payloadLength);
-    if (frame.payloadLength > 0)
-    {
-      std::memcpy(frame.payload.data(), &data[offset], frame.payloadLength);
-
-      // Unmask payload if needed
-      if (frame.mask)
-      {
-        for (uint64_t i = 0; i < frame.payloadLength; ++i)
-        {
-          frame.payload[i] ^= frame.maskingKey[i % 4];
-        }
-      }
-    }
-
-    return true;
-  }
-
-  std::vector<uint8_t> WSClient::buildFrame(const std::vector<uint8_t>& payload, MessageType type, bool fin)
-  {
-    std::vector<uint8_t> frame;
-
-    // FIN and Opcode
-    uint8_t byte = 0;
-    if (fin)
-    {
-      byte |= 0x80;
-    }
-    byte |= static_cast<uint8_t>(type) & 0x0F;
-    frame.push_back(byte);
-
-    // Payload Length (client to server must be masked)
-    uint8_t lenByte = 0x80; // Mask is always true for client
-    uint64_t payloadLength = payload.size();
-
-    if (payloadLength <= 125)
-    {
-      lenByte |= static_cast<uint8_t>(payloadLength);
-      frame.push_back(lenByte);
-    }
-    else if (payloadLength <= 65535)
-    {
-      lenByte |= 126;
-      frame.push_back(lenByte);
-      frame.push_back(static_cast<uint8_t>((payloadLength >> 8) & 0xFF));
-      frame.push_back(static_cast<uint8_t>(payloadLength & 0xFF));
-    }
-    else
-    {
-      lenByte |= 127;
-      frame.push_back(lenByte);
-      // Big-endian
-      for (int i = 7; i >= 0; --i)
-      {
-        frame.push_back(static_cast<uint8_t>((payloadLength >> (i * 8)) & 0xFF));
-      }
-    }
-
-    // Generate masking key
-    uint8_t maskingKey[4] = {
-        static_cast<uint8_t>(rand() % 256),
-        static_cast<uint8_t>(rand() % 256),
-        static_cast<uint8_t>(rand() % 256),
-        static_cast<uint8_t>(rand() % 256)
-    };
-    frame.insert(frame.end(), maskingKey, maskingKey + 4);
-
-    // Payload with masking
-    for (uint64_t i = 0; i < payloadLength; ++i)
-    {
-      frame.push_back(payload[i] ^ maskingKey[i % 4]);
-    }
-
-    return frame;
   }
 }

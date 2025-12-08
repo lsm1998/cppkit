@@ -23,7 +23,7 @@ namespace cppkit::http
     return this->headers.at(key);
   }
 
-  HttpResponse HttpResponse::parseResponse(const std::vector<uint8_t>& raw)
+  HttpResponse HttpResponse::parse(const std::vector<uint8_t>& raw)
   {
     std::string text(raw.begin(), raw.end());
     size_t header_end = text.find("\r\n\r\n");

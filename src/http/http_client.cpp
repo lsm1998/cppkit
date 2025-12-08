@@ -65,7 +65,7 @@ namespace cppkit::http
     setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
 
     // 发送请求
-    if (const auto requestData = request.buildRequestData(host, path, port, https);
+    if (const auto requestData = request.build(host, path, port, https);
       sendData(conn->fd, requestData) <= 0)
     {
       conn->fd = -1; // 标记连接为关闭
@@ -82,7 +82,7 @@ namespace cppkit::http
     }
 
     // 解析响应
-    HttpResponse response = HttpResponse::parseResponse(data);
+    HttpResponse response = HttpResponse::parse(data);
 
     // 处理连接保持活动状态
     bool keepAlive = false;
@@ -112,13 +112,13 @@ namespace cppkit::http
     const size_t slash = url.find('/', start);
     if (slash == std::string::npos)
     {
-        host = url.substr(start);
-        path = "/";
+      host = url.substr(start);
+      path = "/";
     }
     else
     {
-        host = url.substr(start, slash - start);
-        path = url.substr(slash);
+      host = url.substr(start, slash - start);
+      path = url.substr(slash);
     }
 
     // 是否存在端口

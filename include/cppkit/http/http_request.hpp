@@ -1,7 +1,7 @@
 #pragma once
 
 #include "common.hpp"
-#include <cstdint>
+#include "cppkit/define.hpp"
 #include <map>
 #include <sstream>
 #include <string>
@@ -138,7 +138,7 @@ namespace cppkit::http
     }
 
   private:
-    [[nodiscard]] std::vector<uint8_t> buildRequestData(const std::string& host,
+    [[nodiscard]] std::vector<uint8_t> build(const std::string& host,
         const std::string& path,
         int port,
         bool https) const;

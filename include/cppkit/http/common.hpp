@@ -5,14 +5,6 @@
 
 namespace cppkit::http
 {
-  class HttpClient;
-
-  namespace server
-  {
-    class HttpServer;
-  }
-
-
   constexpr int HTTP_OK = 200;
   constexpr int HTTP_CREATED = 201;
   constexpr int HTTP_ACCEPTED = 202;

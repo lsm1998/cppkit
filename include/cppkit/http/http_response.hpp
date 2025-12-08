@@ -3,12 +3,15 @@
 #include "http_request.hpp"
 #include <string>
 
+#include "cppkit/websocket/client.hpp"
+
 
 namespace cppkit::http
 {
   class HttpResponse
   {
     friend HttpClient;
+    friend websocket::WSClient;
 
     int statusCode = 0;
     std::map<std::string, std::string> headers;
@@ -31,7 +34,6 @@ namespace cppkit::http
     [[nodiscard]] std::string getHeader(const std::string& key) const;
 
   private:
-    static HttpResponse parseResponse(const std::vector<uint8_t>& raw);
+    static HttpResponse parse(const std::vector<uint8_t>& raw);
   };
-
 } // namespace cppkit::http

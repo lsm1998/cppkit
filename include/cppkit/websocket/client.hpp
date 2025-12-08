@@ -1,7 +1,7 @@
 #pragma once
 
 #include "frame.hpp"
-#include <cppkit/event/server.hpp>
+#include "cppkit/event/server.hpp"
 #include <string>
 #include <vector>
 #include <functional>
@@ -27,10 +27,12 @@ namespace cppkit::websocket
     void disconnect();
 
     // 发送文本消息
-    bool send(const std::string& message, MessageType type = MessageType::TEXT);
+    [[nodiscard]]
+    bool send(const std::string& message, MessageType type = MessageType::TEXT) const;
 
     // 发送二进制消息
-    bool send(const std::vector<uint8_t>& message, MessageType type = MessageType::BINARY);
+    [[nodiscard]]
+    bool send(const std::vector<uint8_t>& message, MessageType type = MessageType::BINARY) const;
 
     // Handlers
     void setOnConnect(OnConnectHandler handler);
@@ -39,6 +41,7 @@ namespace cppkit::websocket
     void setOnError(OnErrorHandler handler);
 
     // Status
+    [[nodiscard]]
     bool isConnected() const;
 
   private:
@@ -50,16 +53,9 @@ namespace cppkit::websocket
       CONNECTED
     };
 
-    // WebSocket handshake
-    bool handleHandshake(const std::vector<uint8_t>& data);
-
-    // Parse WebSocket frame
-    bool parseFrame(const std::vector<uint8_t>& data, Frame& frame);
-
-    // Build WebSocket frame
-    std::vector<uint8_t> buildFrame(const std::vector<uint8_t>& payload,
-        MessageType type = MessageType::TEXT,
-        bool fin = true);
+    // WebSocket 握手处理
+    [[nodiscard]]
+    bool handleHandshake(const std::vector<uint8_t>& data) const;
 
     // Connection info
     std::string _url;
@@ -70,6 +66,8 @@ namespace cppkit::websocket
 
     ClientState _state = ClientState::DISCONNECTED;
     int _socketFd = -1;
+
+    std::string secWebSocketKey;
 
     // Handlers
     OnConnectHandler _onConnect;
