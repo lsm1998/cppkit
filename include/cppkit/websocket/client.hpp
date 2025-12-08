@@ -13,13 +13,17 @@ namespace cppkit::websocket
   {
   public:
     using OnConnectHandler = std::function<void()>;
-    using OnMessageHandler = std::function<void(const std::vector<uint8_t>& MessageType)>;
+    using OnMessageHandler = std::function<void(const std::vector<uint8_t>&)>;
     using OnCloseHandler = std::function<void()>;
     using OnErrorHandler = std::function<void(const std::string&)>;
 
     WebSocketClient() = default;
 
     ~WebSocketClient();
+
+    WebSocketClient(WebSocketClient const&) = delete;
+
+    WebSocketClient(WebSocketClient&&) = delete;
 
     // 连接服务器
     [[nodiscard]]
