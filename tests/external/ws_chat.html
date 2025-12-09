@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket 在线聊天客户端</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 700px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+
+        #status {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        #messages {
+            border: 1px solid #ccc;
+            height: 400px;
+            overflow-y: scroll;
+            padding: 10px;
+            background: #f4f4f4;
+            border-radius: 5px;
+        }
+
+        #inputArea {
+            display: flex;
+            margin-top: 15px;
+        }
+
+        #messageInput {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px 0 0 3px;
+        }
+
+        #sendButton {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 0 3px 3px 0;
+            cursor: pointer;
+        }
+
+        .system {
+            color: gray;
+            font-style: italic;
+        }
+
+        .self {
+            color: blue;
+            text-align: right;
+            margin-right: 5px;
+        }
+
+        .other {
+            color: green;
+            text-align: left;
+            margin-left: 5px;
+        }
+
+        .message-row {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+<h1>WebSocket 聊天客户端 (需 Token 认证)</h1>
+
+<div style="margin-bottom: 15px;">
+    <label for="tokenInput">认证 Token:</label>
+    <input type="text" id="tokenInput" value="yyds" placeholder="输入认证 Token"
+           style="width: 250px; padding: 5px;">
+    <button onclick="connect()">连接/认证</button>
+</div>
+
+<div id="status">连接状态: 待连接...</div>
+
+<div id="messages"></div>
+
+<div id="inputArea">
+    <input type="text" id="messageInput" placeholder="输入消息内容..." onkeydown="handleKey(event)">
+    <button id="sendButton" onclick="sendMessage()">发送</button>
+</div>
+
+<script>
+    const baseEndpoint = "ws://localhost:8899/ws";
+    let ws = null;
+
+    const statusDiv = document.getElementById("status");
+    const messagesDiv = document.getElementById("messages");
+    const messageInput = document.getElementById("messageInput");
+    const tokenInput = document.getElementById("tokenInput");
+
+    // --- 辅助函数：日志记录 ---
+    function logMessage(text, className = 'system') {
+        const row = document.createElement("div");
+        row.className = `message-row ${className}`;
+        row.innerText = text;
+        messagesDiv.appendChild(row);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // --- 连接/认证函数 ---
+    function connect() {
+        const token = tokenInput.value.trim();
+        if (!token) {
+            logMessage("系统: 请先输入 Token。", 'system');
+            statusDiv.innerText = "连接状态: 需要 Token";
+            return;
+        }
+
+        const endpointWithToken = `${baseEndpoint}?token=${encodeURIComponent(token)}`;
+
+        if (ws) {
+            ws.close();
+        }
+
+        logMessage(`系统: 尝试使用 Token [${token.substring(0, 5)}...] 连接...`);
+        statusDiv.innerText = "连接状态: 认证中...";
+
+        try {
+            ws = new WebSocket(endpointWithToken);
+        } catch (error) {
+            logMessage(`系统: 无法创建 WebSocket 实例: ${error.message}`, 'system');
+            statusDiv.innerText = "连接状态: 失败 (地址错误)";
+            return;
+        }
+
+        // ------------------------------------
+        // WebSocket 事件监听器
+        // ------------------------------------
+
+        ws.onopen = function () {
+            statusDiv.innerText = "连接状态: 已连接 (认证通过)";
+            logMessage("系统: WebSocket 连接已建立，可以开始发送消息。", 'system');
+        };
+
+        ws.onmessage = function (event) {
+            // 这是回声逻辑，服务器将您发送的消息原样返回
+            logMessage(`[服务器回应]: ${event.data}`, 'other');
+        };
+
+        ws.onclose = function (event) {
+            statusDiv.innerText = `连接状态: 已断开 (代码: ${event.code})`;
+            logMessage("系统: 连接已断开，请刷新页面或点击认证/连接重试。", 'system');
+        };
+
+        ws.onerror = function (error) {
+            // 当 Token 认证失败时，浏览器可能只会触发 onerror 和 onclose 事件
+            // 通常需要检查服务器日志来确定失败原因。
+            statusDiv.innerText = "连接状态: 错误 (可能认证失败)";
+            logMessage(`系统: 连接发生错误，请检查 Token 是否正确。`, 'system');
+        };
+    }
+
+    // --- 发送消息函数 ---
+    function sendMessage() {
+        const message = messageInput.value.trim();
+        if (message === "") return;
+
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            logMessage(`[我]: ${message}`, 'self');
+            ws.send(message);
+            messageInput.value = "";
+        } else {
+            logMessage("系统: 连接未打开，请先连接。", 'system');
+            // 自动点击连接/认证按钮
+            document.querySelector('button[onclick="connect()"]').click();
+        }
+    }
+
+    function handleKey(event) {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    }
+
+    // 页面加载完成后，用户需要手动点击连接按钮 (因为它依赖 Token 输入)
+    // window.onload = connect; // 取消自动连接
+</script>
+</body>
+</html>
