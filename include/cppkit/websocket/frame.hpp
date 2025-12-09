@@ -2,6 +2,9 @@
 
 #include "cppkit/define.hpp"
 #include <vector>
+#include <random>
+
+#include "cppkit/random.hpp"
 
 namespace cppkit::websocket
 {
@@ -58,45 +61,63 @@ namespace cppkit::websocket
       const bool mask = false)
   {
     std::vector<uint8_t> frame;
+    const uint64_t payloadLength = payload.size();
 
-    // FIN and Opcode
-    uint8_t byte = 0;
+    std::vector<uint8_t> maskedPayload = payload;
+
+    uint8_t byte0 = 0;
     if (fin)
     {
-      byte |= 0x80;
+      byte0 |= 0x80; // 设置 FIN 位
     }
-    byte |= static_cast<uint8_t>(type) & 0x0F;
-    frame.push_back(byte);
+    byte0 |= static_cast<uint8_t>(type) & 0x0F; // 设置 Opcode
+    frame.push_back(byte0);
 
-    // Mask and Payload Length
-    uint8_t lenByte = mask ? 0x80 : 0x00;
+    uint8_t lenByte1 = mask ? 0x80 : 0x00; // 设置 MASK 位
 
-    if (const uint64_t payloadLength = payload.size(); payloadLength <= 125)
+    if (payloadLength <= 125)
     {
-      lenByte |= static_cast<uint8_t>(payloadLength);
-      frame.push_back(lenByte);
+      lenByte1 |= static_cast<uint8_t>(payloadLength);
+      frame.push_back(lenByte1);
     }
     else if (payloadLength <= 65535)
     {
-      lenByte |= 126;
-      frame.push_back(lenByte);
+      lenByte1 |= 126;
+      frame.push_back(lenByte1);
+
       frame.push_back(static_cast<uint8_t>(payloadLength >> 8 & 0xFF));
       frame.push_back(static_cast<uint8_t>(payloadLength & 0xFF));
     }
     else
     {
-      lenByte |= 127;
-      frame.push_back(lenByte);
-      // Big-endian
+      lenByte1 |= 127;
+      frame.push_back(lenByte1);
+
       for (int i = 7; i >= 0; --i)
       {
         frame.push_back(static_cast<uint8_t>(payloadLength >> (i * 8) & 0xFF));
       }
     }
 
-    // Payload
-    frame.insert(frame.end(), payload.begin(), payload.end());
+    // 处理掩码
+    if (mask)
+    {
+      std::vector<uint8_t> maskingKey(4);
 
+      for (size_t i = 0; i < 4; ++i)
+      {
+        maskingKey[i] = static_cast<uint8_t>(Random::nextInt(0, 255));
+      }
+
+      frame.insert(frame.end(), maskingKey.begin(), maskingKey.end());
+
+      for (size_t i = 0; i < maskedPayload.size(); ++i)
+      {
+        maskedPayload[i] ^= maskingKey[i % 4];
+      }
+    }
+
+    frame.insert(frame.end(), maskedPayload.begin(), maskedPayload.end());
     return frame;
   }
 

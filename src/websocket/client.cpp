@@ -108,6 +108,8 @@ namespace cppkit::websocket
 
     // 生成 Sec-WebSocket-Key
     secWebSocketKey = Random::randomString(16, std::string(lowerChars) + upperChars + digitChars);
+    // base64 编码
+    secWebSocketKey = crypto::Base64::encode(secWebSocketKey);
 
     // Send WebSocket handshake
     std::stringstream handshake;
@@ -197,7 +199,7 @@ namespace cppkit::websocket
       return false;
     }
 
-    const std::vector<uint8_t> frame = buildFrame(message, type);
+    const std::vector<uint8_t> frame = buildFrame(message, type,true,true);
     const ssize_t sent = ::send(_socketFd, frame.data(), frame.size(), 0);
 
     return sent == static_cast<ssize_t>(frame.size());

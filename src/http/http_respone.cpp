@@ -1,6 +1,8 @@
 #include "cppkit/http/http_response.hpp"
 #include <sstream>
 
+#include "cppkit/strings.hpp"
+
 namespace cppkit::http
 {
   int HttpResponse::getStatusCode() const
@@ -20,7 +22,8 @@ namespace cppkit::http
 
   std::string HttpResponse::getHeader(const std::string& key) const
   {
-    return this->headers.at(key);
+    const auto val = headers.find(key);
+    return val != headers.end() ? val->second : "";
   }
 
   HttpResponse HttpResponse::parse(const std::vector<uint8_t>& raw)
@@ -48,8 +51,23 @@ namespace cppkit::http
 
     while (std::getline(stream, line) && !line.empty())
     {
-      if (auto pos = line.find(':'); pos != std::string::npos)
-        headers[line.substr(0, pos)] = line.substr(pos + 2);
+      std::string trimmedLine = trim(line);
+      if (trimmedLine.empty())
+      {
+        break;
+      }
+
+      if (auto pos = trimmedLine.find(':'); pos != std::string::npos)
+      {
+        std::string key = trimmedLine.substr(0, pos);
+        std::string value = trimmedLine.substr(pos + 1);
+        value = trim(value);
+
+        if (!key.empty())
+        {
+          headers[key] = value;
+        }
+      }
     }
 
     body.assign(body_part.begin(), body_part.end());

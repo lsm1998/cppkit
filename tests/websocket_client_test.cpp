@@ -8,7 +8,7 @@ int main()
   using namespace cppkit::websocket;
 
   WebSocketClient client;
-  if (!client.connect("ws://localhost:8080"))
+  if (!client.connect("ws://localhost:8080/ws"))
   {
     perror("");
   }
@@ -39,6 +39,8 @@ int main()
     {
       perror("client send failed");
     }
-    sleep(1);
+    std::cout << "send once" << std::endl;
+    // 休眠200毫秒
+    usleep(200 * 1000);
   }
 }
