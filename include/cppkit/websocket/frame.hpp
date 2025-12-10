@@ -1,10 +1,10 @@
 #pragma once
 
 #include "cppkit/define.hpp"
+#include "cppkit/random.hpp"
 #include <vector>
 #include <random>
-
-#include "cppkit/random.hpp"
+#include <cstring>
 
 namespace cppkit::websocket
 {
