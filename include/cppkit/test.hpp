@@ -6,105 +6,131 @@
 #include <string>
 #include <vector>
 
-namespace cppkit {
+namespace cppkit
+{
+    class FatalAssertionException final : public std::exception
+    {
+    public:
+        [[nodiscard]] const char* what() const noexcept override
+        {
+            return "Fatal assertion failed";
+        }
+    };
 
-class FatalAssertionException : public std::exception {
-public:
-  const char *what() const noexcept override {
-    return "Fatal assertion failed";
-  }
-};
+    class Test
+    {
+    public:
+        virtual void SetUp()
+        {
+        }
 
-class Test {
-public:
-  virtual void SetUp() {}
-  virtual void TearDown() {}
-  virtual ~Test() = default;
-};
+        virtual void TearDown()
+        {
+        }
 
-class TestRegistry {
-public:
-  using TestCreator = std::function<void()>;
+        virtual ~Test() = default;
+    };
 
-  struct TestInfo {
-    std::string suite_name;
-    std::string test_name;
-    TestCreator creator;
-  };
+    class TestRegistry
+    {
+    public:
+        using TestCreator = std::function<void()>;
 
-  static TestRegistry &GetInstance() {
-    static TestRegistry instance;
-    return instance;
-  }
+        struct TestInfo
+        {
+            std::string suite_name;
+            std::string test_name;
+            TestCreator creator;
+        };
 
-  void RegisterTest(const std::string &suite_name, const std::string &test_name,
-                    TestCreator creator) {
-    tests_.push_back({suite_name, test_name, creator});
-  }
+        static TestRegistry& GetInstance()
+        {
+            static TestRegistry instance;
+            return instance;
+        }
 
-  const std::vector<TestInfo> &GetTests() const { return tests_; }
+        void RegisterTest(const std::string& suite_name, const std::string& test_name,
+                          const TestCreator& creator)
+        {
+            tests_.push_back({suite_name, test_name, creator});
+        }
 
-private:
-  std::vector<TestInfo> tests_;
-};
+        const std::vector<TestInfo>& GetTests() const { return tests_; }
 
-inline int RunAllTests() {
-  int passed_count = 0;
-  int failed_count = 0;
-  int total_count = 0;
+    private:
+        std::vector<TestInfo> tests_;
+    };
 
-  std::cout << "[==========] Running all tests." << std::endl;
+    inline int RunAllTests()
+    {
+        int passed_count = 0;
+        int failed_count = 0;
+        int total_count = 0;
 
-  for (const auto &test_info : TestRegistry::GetInstance().GetTests()) {
-    std::cout << "[ RUN      ] " << test_info.suite_name << "."
-              << test_info.test_name << std::endl;
-    total_count++;
+        std::cout << "[==========] Running all tests." << std::endl;
 
-    try {
-      test_info.creator();
-      std::cout << "[       OK ] " << test_info.suite_name << "."
-                << test_info.test_name << std::endl;
-      passed_count++;
-    } catch (const FatalAssertionException &) {
-      // 致命断言已打印错误信息，直接标记为失败
-      std::cout << "[  FAILED  ] " << test_info.suite_name << "."
-                << test_info.test_name << std::endl;
-      failed_count++;
-    } catch (const std::exception &e) {
-      std::cerr << "意外异常: " << e.what() << std::endl;
-      std::cout << "[  FAILED  ] " << test_info.suite_name << "."
-                << test_info.test_name << std::endl;
-      failed_count++;
-    } catch (...) {
-      std::cerr << "意外异常" << std::endl;
-      std::cout << "[  FAILED  ] " << test_info.suite_name << "."
-                << test_info.test_name << std::endl;
-      failed_count++;
+        for (const auto& [suite_name, test_name, creator] : TestRegistry::GetInstance().GetTests())
+        {
+            std::cout << "[ RUN      ] " << suite_name << "."
+                << test_name << std::endl;
+            total_count++;
+
+            try
+            {
+                creator();
+                std::cout << "[       OK ] " << suite_name << "."
+                    << test_name << std::endl;
+                passed_count++;
+            }
+            catch (const FatalAssertionException&)
+            {
+                // 致命断言已打印错误信息，直接标记为失败
+                std::cout << "[  FAILED  ] " << suite_name << "."
+                    << test_name << std::endl;
+                failed_count++;
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << "意外异常: " << e.what() << std::endl;
+                std::cout << "[  FAILED  ] " << suite_name << "."
+                    << test_name << std::endl;
+                failed_count++;
+            }
+            catch (...)
+            {
+                std::cerr << "意外异常" << std::endl;
+                std::cout << "[  FAILED  ] " << suite_name << "."
+                    << test_name << std::endl;
+                failed_count++;
+            }
+        }
+
+        std::cout << "[==========] " << total_count << " tests ran." << std::endl;
+        std::cout << "[  PASSED  ] " << passed_count << " tests." << std::endl;
+        if (failed_count > 0)
+        {
+            std::cout << "[  FAILED  ] " << failed_count << " tests." << std::endl;
+        }
+
+        return failed_count > 0 ? 1 : 0;
     }
-  }
 
-  std::cout << "[==========] " << total_count << " tests ran." << std::endl;
-  std::cout << "[  PASSED  ] " << passed_count << " tests." << std::endl;
-  if (failed_count > 0) {
-    std::cout << "[  FAILED  ] " << failed_count << " tests." << std::endl;
-  }
+    class TestResult
+    {
+    public:
+        static bool& CurrentTestStatus()
+        {
+            thread_local bool status = true;
+            return status;
+        }
 
-  return failed_count > 0 ? 1 : 0;
-}
-
-class TestResult {
-public:
-  static bool &CurrentTestStatus() {
-    thread_local bool status = true;
-    return status;
-  }
-
-  static void PrintFailure(const std::string &expression,
-                           const std::string &file, int line) {
-    std::cerr << file << ":" << line << ": failed" << std::endl;
-    std::cerr << "  Expression: " << expression << std::endl;
-  }
-};
+        static void PrintFailure(const std::string& expression,
+                                 const std::string& file, int line)
+        {
+            std::cerr << file << ":" << line << ": failed" << std::endl;
+            std::cerr << "  Expression: " << expression << std::endl;
+        }
+    };
 
 #define EXPECT_TRUE(expr)                                                      \
   if (!(expr)) {                                                               \
@@ -182,5 +208,4 @@ public:
   }();                                                                         \
   }                                                                            \
   void Test_##suite##_##name##_::TestBody()
-
 } // namespace cppkit

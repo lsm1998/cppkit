@@ -2,7 +2,7 @@
 
 using namespace cppkit;
 
-int Add(int a, int b)
+int Add(const int a, const int b)
 {
   return a + b;
 }
@@ -47,5 +47,5 @@ TEST_F(StringFixture, SubstringTest)
 
 int main()
 {
-  return cppkit::RunAllTests();
+  return RunAllTests();
 }
