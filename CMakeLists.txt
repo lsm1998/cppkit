@@ -22,6 +22,7 @@ add_library(cppkit SHARED
         src/http/server/http_router.cpp
         src/io/file.cpp
         src/strings.cpp
+        src/time.cpp
         src/arg_parser.cpp
         src/event/ae.cpp
         src/event/server.cpp
