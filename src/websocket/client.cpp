@@ -107,7 +107,7 @@ namespace cppkit::websocket
     _state = ClientState::CONNECTING;
 
     // 生成 Sec-WebSocket-Key
-    secWebSocketKey = Random::randomString(16, std::string(lowerChars) + upperChars + digitChars);
+    secWebSocketKey = Random::randomString(16, std::string(lowerChars) + std::string(upperChars) + std::string(digitChars));
     // base64 编码
     secWebSocketKey = crypto::Base64::encode(secWebSocketKey);
 

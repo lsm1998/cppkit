@@ -2,21 +2,23 @@
 
 #include <random>
 #include <string>
+#include <string_view>
+#include <array>
 
 namespace cppkit
 {
-  constexpr auto lowerChars = "abcdefghijklmnopqrstuvwxyz";
+  constexpr std::string_view lowerChars = "abcdefghijklmnopqrstuvwxyz";
 
-  constexpr auto upperChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  constexpr std::string_view upperChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-  constexpr auto digitChars = "0123456789";
+  constexpr std::string_view digitChars = "0123456789";
 
-  constexpr auto symbolChars = "!@#$%^&*()-_=+[]{}|;:',.<>/?`~ ";
+  constexpr std::string_view symbolChars = "!@#$%^&*()-_=+[]{}|;:',.<>/?`~ ";
 
-  consteval std::string allChars()
-  {
-    return std::string(lowerChars) + upperChars + digitChars + symbolChars;
-  }
+  constexpr std::string_view allChars = "abcdefghijklmnopqrstuvwxyz"
+                                       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                       "0123456789"
+                                       "!@#$%^&*()-_=+[]{}|;:',.<>/?`~ ";
 
   class Random
   {
@@ -40,8 +42,7 @@ namespace cppkit
       return dist(gen);
     }
 
-    static std::string randomString(const int len,
-        const std::string& charset = allChars())
+    static std::string randomString(const int len, std::string_view charset = allChars)
     {
       thread_local std::mt19937 gen(std::random_device{}());
       std::uniform_int_distribution dist(0, static_cast<int>(charset.size() - 1));
