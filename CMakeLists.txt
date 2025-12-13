@@ -23,6 +23,7 @@ add_library(cppkit SHARED
         src/io/file.cpp
         src/strings.cpp
         src/time.cpp
+        src/timer.cpp
         src/arg_parser.cpp
         src/event/ae.cpp
         src/event/server.cpp

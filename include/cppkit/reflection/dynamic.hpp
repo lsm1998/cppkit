@@ -43,12 +43,13 @@ namespace cppkit::reflection
         }
     };
 
+    // 反射类结构
     class Class
     {
     public:
-        std::string name;
-        std::map<std::string, ReflectionField> fields;
-        std::map<std::string, ReflectionMethod> methods;
+        std::string name; // 类名
+        std::map<std::string, ReflectionField> fields; // 字段映射
+        std::map<std::string, ReflectionMethod> methods; // 方法映射
 
         static Class& forName(const std::string& name);
 
@@ -64,8 +65,10 @@ namespace cppkit::reflection
             return methods[methodName];
         }
 
+        // 默认构造函数
         std::function<std::any()> constructor;
 
+        // 创建新实例
         [[nodiscard]] std::any newInstance() const
         {
             if (!constructor) throw std::runtime_error("No default constructor registered");
@@ -220,6 +223,7 @@ namespace cppkit::reflection
                 cls.constructor = []() -> std::any { return T(); };
             }
 
+            // 注册字段和方法
             std::apply([&](auto&&... args)
             {
                 ((registerItem(cls, args)), ...);
@@ -255,11 +259,6 @@ namespace cppkit::reflection
         struct is_method_tag : std::false_type
         {
         };
-
-        // template <typename C, typename R, typename... A>
-        // struct is_method_tag<MethodTag<C, R, A...>> : std::true_type
-        // {
-        // };
     };
 
 #define REFLECT_VAR_NAME(Line) _auto_reg_##Line

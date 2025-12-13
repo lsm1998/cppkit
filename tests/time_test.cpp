@@ -1,4 +1,5 @@
 #include "cppkit/time.hpp"
+#include "cppkit/timer.hpp"
 #include <iostream>
 #include <unistd.h>
 
@@ -17,4 +18,24 @@ int main()
     sleep(2);
 
     std::cout << "diff:" << cppkit::Time::Since(now) << std::endl;
+
+    cppkit::Timer timer;
+
+    timer.setTimeout(cppkit::Second * 1, []
+    {
+        std::cout << "setTimeout执行 " << cppkit::Time::Now().Format() << std::endl;
+    });
+
+    auto id = timer.setInterval(cppkit::Second * 1, []
+    {
+        std::cout << "setInterval执行 " << cppkit::Time::Now().Format() << std::endl;
+    });
+
+    timer.setTimeout(cppkit::Second * 3, [&timer,id]
+    {
+        timer.cancel(id);
+    });
+
+
+    sleep(10);
 }

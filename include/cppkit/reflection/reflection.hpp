@@ -7,7 +7,6 @@ namespace cppkit::reflection
 {
     namespace internal
     {
-        // 确保这里匹配的是 2 个参数的 MethodTag
         template <typename T>
         struct is_method_tag_impl : std::false_type
         {
@@ -77,6 +76,7 @@ namespace cppkit::reflection
         }, items);
     }
 
+    // Anything 用于占位，可以转换为任意类型的默认值
     struct Anything
     {
         template <typename T>
@@ -86,12 +86,14 @@ namespace cppkit::reflection
         }
     };
 
+    // 判断类型 T 是否可以用 N 个任意类型的参数进行聚合初始化
     template <typename T, size_t... I>
     consteval bool is_constructible_n(std::index_sequence<I...>)
     {
         return requires { T{(void(I), Anything{})...}; };
     }
 
+    // 递归计算聚合类型 T 的字段数量，N 为当前尝试的字段数量，Max 为最大尝试次数
     template <typename T, size_t N, size_t Max>
     consteval size_t countFieldsImpl()
     {
@@ -114,6 +116,7 @@ namespace cppkit::reflection
         }
     }
 
+    // 计算聚合类型 T 的字段数量，最多尝试 64 个字段
     template <typename T>
     consteval size_t countFields()
     {
