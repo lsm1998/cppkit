@@ -106,7 +106,6 @@ namespace cppkit
 
         static Span Until(const Time& t);
 
-
         [[nodiscard]] std::string Format(std::string pattern = "%Y-%m-%d %H:%M:%S") const;
 
         friend std::ostream& operator<<(std::ostream& os, const Time& t);

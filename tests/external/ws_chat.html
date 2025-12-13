@@ -96,7 +96,6 @@
     const messageInput = document.getElementById("messageInput");
     const tokenInput = document.getElementById("tokenInput");
 
-    // --- 辅助函数：日志记录 ---
     function logMessage(text, className = 'system') {
         const row = document.createElement("div");
         row.className = `message-row ${className}`;
@@ -105,7 +104,6 @@
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    // --- 连接/认证函数 ---
     function connect() {
         const token = tokenInput.value.trim();
         if (!token) {
@@ -131,17 +129,12 @@
             return;
         }
 
-        // ------------------------------------
-        // WebSocket 事件监听器
-        // ------------------------------------
-
         ws.onopen = function () {
             statusDiv.innerText = "连接状态: 已连接 (认证通过)";
             logMessage("系统: WebSocket 连接已建立，可以开始发送消息。", 'system');
         };
 
         ws.onmessage = function (event) {
-            // 这是回声逻辑，服务器将您发送的消息原样返回
             logMessage(`[服务器回应]: ${event.data}`, 'other');
         };
 
@@ -151,14 +144,11 @@
         };
 
         ws.onerror = function (error) {
-            // 当 Token 认证失败时，浏览器可能只会触发 onerror 和 onclose 事件
-            // 通常需要检查服务器日志来确定失败原因。
             statusDiv.innerText = "连接状态: 错误 (可能认证失败)";
             logMessage(`系统: 连接发生错误，请检查 Token 是否正确。`, 'system');
         };
     }
 
-    // --- 发送消息函数 ---
     function sendMessage() {
         const message = messageInput.value.trim();
         if (message === "") return;
@@ -169,7 +159,6 @@
             messageInput.value = "";
         } else {
             logMessage("系统: 连接未打开，请先连接。", 'system');
-            // 自动点击连接/认证按钮
             document.querySelector('button[onclick="connect()"]').click();
         }
     }
@@ -179,9 +168,6 @@
             sendMessage();
         }
     }
-
-    // 页面加载完成后，用户需要手动点击连接按钮 (因为它依赖 Token 输入)
-    // window.onload = connect; // 取消自动连接
 </script>
 </body>
 </html>

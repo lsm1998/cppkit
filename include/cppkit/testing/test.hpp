@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace cppkit
+namespace cppkit::testing
 {
     class FatalAssertionException final : public std::exception
     {

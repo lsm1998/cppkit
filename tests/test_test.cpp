@@ -1,6 +1,6 @@
-#include "cppkit/test.hpp"
+#include "cppkit/testing/test.hpp"
 
-using namespace cppkit;
+using namespace cppkit::testing;
 
 int Add(const int a, const int b)
 {
