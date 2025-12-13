@@ -76,4 +76,51 @@ namespace cppkit::reflection
             ), ...);
         }, items);
     }
+
+    struct Anything
+    {
+        template <typename T>
+        constexpr operator T() const
+        {
+            return T{};
+        }
+    };
+
+    template <typename T, size_t... I>
+    consteval bool is_constructible_n(std::index_sequence<I...>)
+    {
+        return requires { T{(void(I), Anything{})...}; };
+    }
+
+    template <typename T, size_t N, size_t Max>
+    consteval size_t countFieldsImpl()
+    {
+        static_assert(Max > 0, "Max fields must be greater than 0");
+
+        if constexpr (is_constructible_n<T>(std::make_index_sequence<N>{}))
+        {
+            if constexpr (N < Max)
+            {
+                return countFieldsImpl<T, N + 1, Max>();
+            }
+            else
+            {
+                return Max;
+            }
+        }
+        else
+        {
+            return N - 1;
+        }
+    }
+
+    template <typename T>
+    consteval size_t countFields()
+    {
+        using RawType = std::decay_t<T>;
+
+        static_assert(std::is_aggregate_v<RawType>, "Type must be an aggregate");
+
+        return countFieldsImpl<RawType, 0, 64>();
+    }
 }

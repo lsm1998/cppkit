@@ -1,6 +1,5 @@
 #include "cppkit/reflection/dynamic.hpp"
 #include "cppkit/reflection/reflection.hpp"
-#include "cppkit/strings.hpp"
 #include <vector>
 #include <iostream>
 #include <map>
@@ -55,4 +54,7 @@ int main()
     auto f = clazz.getField("id");
     f.set(&user, -100);
     std::cout << user.id << std::endl;
+
+    constexpr auto size = cppkit::reflection::countFields<test::User>();
+    std::cout << size << std::endl;
 }
