@@ -1,6 +1,7 @@
 #include "cppkit/io/file.hpp"
 #include <iostream>
 #include <stdexcept>
+#include <cstring>
 
 int main()
 {
@@ -24,10 +25,10 @@ int main()
 
     std::cout << file.getAbsolutePath() << std::endl;
 
-    constexpr auto str = std::string("hello world");
     for (int i = 0; i < 10; ++i)
     {
-        if (const auto n = file.write(str.c_str(), str.size(), 0, true); n <= 0)
+        constexpr auto str = "hello world";
+        if (const auto n = file.write(str, strlen(str), 0, true); n <= 0)
         {
             throw std::runtime_error("write执行失败");
         }

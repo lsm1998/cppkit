@@ -6,6 +6,7 @@
 #include <string_view>
 #include <tuple>
 #include <vector>
+#include <deque>
 #include <map>
 #include <functional>
 #include <any>
@@ -111,7 +112,6 @@ namespace cppkit::reflection
             // 生成 Setter
             df.setFunc = [ptr](void* instance, const std::any& val)
             {
-                // 注意：这里需要处理类型转换，比如 int -> double 可能会抛出异常
                 static_cast<Class*>(instance)->*ptr = castAny<T>(val);
             };
             return df;
@@ -169,11 +169,11 @@ namespace cppkit::reflection
         T Class::* ptr;
     };
 
-    template <typename Class, typename Ret, typename... Args>
+    template <typename Class, typename PtrType>
     struct MethodTag
     {
         std::string_view name;
-        Ret (Class::*ptr)(Args...);
+        PtrType ptr;
     };
 
     template <typename Class, typename T>
@@ -182,10 +182,10 @@ namespace cppkit::reflection
         return FieldTag<Class, T>{name, ptr};
     }
 
-    template <typename Class, typename Ret, typename... Args>
-    constexpr auto makeMethod(std::string_view name, Ret (Class::*ptr)(Args...))
+    template <typename Class, typename PtrType>
+    constexpr auto makeMethod(std::string_view name, PtrType ptr)
     {
-        return MethodTag<Class, Ret, Args...>{name, ptr};
+        return MethodTag<Class, PtrType>{name, ptr};
     }
 
     constexpr auto cppkit_reflect_members(...)
@@ -202,20 +202,12 @@ namespace cppkit::reflection
         }
     };
 
-    // template <typename T>
-    // struct MetaData
-    // {
-    //     static constexpr auto info() { return std::make_tuple(); } // 默认空
-    //     static std::string className() { return ""; }
-    // };
-
     template <typename T>
     struct AutoRegister
     {
-        AutoRegister()
+        explicit AutoRegister(const std::string_view name)
         {
-            constexpr std::string_view clsNameView = getTypeName<T>();
-            const std::string clsName(clsNameView);
+            const std::string clsName(name);
 
             constexpr auto items = MetaData<T>::info();
 
@@ -264,35 +256,41 @@ namespace cppkit::reflection
         {
         };
 
-        template <typename C, typename R, typename... A>
-        struct is_method_tag<MethodTag<C, R, A...>> : std::true_type
-        {
-        };
+        // template <typename C, typename R, typename... A>
+        // struct is_method_tag<MethodTag<C, R, A...>> : std::true_type
+        // {
+        // };
     };
 
 #define REFLECT_VAR_NAME(Line) _auto_reg_##Line
 
-#define REFLECT_IMPL(STRUCT_NAME, LINE, ...) \
-inline constexpr auto cppkit_reflect_members(STRUCT_NAME*) { \
-using T = STRUCT_NAME; \
+#define REFLECT_CORE(TYPE, KEY_STR, LINE, ...) \
+inline constexpr auto cppkit_reflect_members(TYPE*) { \
+using T = TYPE; \
 return std::make_tuple(__VA_ARGS__); \
 } \
-inline static cppkit::reflection::AutoRegister<STRUCT_NAME> REFLECT_VAR_NAME(LINE);
+inline static ::cppkit::reflection::AutoRegister<TYPE> REFLECT_VAR_NAME(LINE)(KEY_STR);
+
+#define REFLECT_IMPL(STRUCT_NAME, LINE, ...) \
+inline constexpr auto cppkit_reflect_members(STRUCT_NAME*) { \
+    using T = STRUCT_NAME; \
+    return std::make_tuple(__VA_ARGS__); \
+} \
+inline static cppkit::reflection::AutoRegister<STRUCT_NAME> REFLECT_VAR_NAME(LINE)(#STRUCT_NAME);
 
 #define REFLECT(STRUCT_NAME, ...) \
-REFLECT_IMPL(STRUCT_NAME, __LINE__, __VA_ARGS__)
-
-#define REFLECT(STRUCT_NAME, ...) \
-REFLECT_IMPL(STRUCT_NAME, __LINE__, __VA_ARGS__)
+REFLECT_CORE(STRUCT_NAME, #STRUCT_NAME, __LINE__, __VA_ARGS__)
 
 #define REFLECT_IN_NS(NAMESPACE, STRUCT_NAME, ...) \
 namespace NAMESPACE { \
-REFLECT(STRUCT_NAME, __VA_ARGS__) \
+REFLECT_CORE(STRUCT_NAME, #NAMESPACE "::" #STRUCT_NAME, __LINE__, __VA_ARGS__) \
 }
+
+#define REFLECT_NAMED(STRUCT_NAME, KEY_NAME, ...) \
+REFLECT_CORE(STRUCT_NAME, KEY_NAME, __LINE__, __VA_ARGS__)
 
 #define FIELD(NAME) \
         cppkit::reflection::makeField(#NAME, &T::NAME)
 
-#define METHOD(NAME) \
-        cppkit::reflection::makeMethod(#NAME, &T::NAME)
+#define METHOD(NAME) ::cppkit::reflection::makeMethod<T>(#NAME, &T::NAME)
 }

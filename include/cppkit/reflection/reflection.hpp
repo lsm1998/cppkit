@@ -7,6 +7,17 @@ namespace cppkit::reflection
 {
     namespace internal
     {
+        // 确保这里匹配的是 2 个参数的 MethodTag
+        template <typename T>
+        struct is_method_tag_impl : std::false_type
+        {
+        };
+
+        template <typename C, typename P>
+        struct is_method_tag_impl<MethodTag<C, P>> : std::true_type
+        {
+        };
+
         template <typename T>
         struct is_field_tag_impl : std::false_type
         {
@@ -19,16 +30,6 @@ namespace cppkit::reflection
 
         template <typename T>
         constexpr bool is_field_tag_v = is_field_tag_impl<T>::value;
-
-        template <typename T>
-        struct is_method_tag_impl : std::false_type
-        {
-        };
-
-        template <typename C, typename... Args>
-        struct is_method_tag_impl<MethodTag<C, Args...>> : std::true_type
-        {
-        };
 
         template <typename T>
         constexpr bool is_method_tag_v = is_method_tag_impl<std::decay_t<T>>::value;

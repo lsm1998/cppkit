@@ -72,6 +72,14 @@
             "program": "${workspaceFolder}/build/tests/crypto_test",
             "args": [],
             "cwd": "${workspaceFolder}",
+        },
+        {
+            "name" : "reflection_test",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/tests/reflection_test",
+            "args": [],
+            "cwd": "${workspaceFolder}",
         }
     ]
 }
