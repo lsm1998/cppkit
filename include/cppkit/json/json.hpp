@@ -299,7 +299,7 @@ namespace cppkit::json
         };
 
         template <typename T>
-        struct is_reflectable<T, std::void_t<decltype(reflection::MetaData<T>::members())>> : std::true_type
+        struct is_reflectable<T, std::void_t<decltype(reflection::MetaData<T>::info())>> : std::true_type
         {
         };
 

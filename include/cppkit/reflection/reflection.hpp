@@ -1,52 +1,78 @@
 #pragma once
 
+#include "dynamic.hpp"
 #include <string>
 
 namespace cppkit::reflection
 {
-    // 1. 定义一个用于存储 [字段名] 和 [成员指针] 的绑定结构
-    template <typename Class, typename T>
-    struct Field
+    namespace internal
     {
-        std::string_view name;
-        T Class::* ptr; // 成员指针
-    };
+        template <typename T>
+        struct is_field_tag_impl : std::false_type
+        {
+        };
 
-    template <typename Class, typename T>
-    constexpr auto makeField(std::string_view name, T Class::* ptr)
-    {
-        return Field<Class, T>{name, ptr};
+        template <typename C, typename... Args>
+        struct is_field_tag_impl<FieldTag<C, Args...>> : std::true_type
+        {
+        };
+
+        template <typename T>
+        constexpr bool is_field_tag_v = is_field_tag_impl<T>::value;
+
+        template <typename T>
+        struct is_method_tag_impl : std::false_type
+        {
+        };
+
+        template <typename C, typename... Args>
+        struct is_method_tag_impl<MethodTag<C, Args...>> : std::true_type
+        {
+        };
+
+        template <typename T>
+        constexpr bool is_method_tag_v = is_method_tag_impl<std::decay_t<T>>::value;
     }
-
-    template <typename T>
-    struct MetaData
-    {
-        static constexpr auto members() { return std::make_tuple(); }
-    };
 
     template <typename T, typename Func>
     constexpr void forEachField(T&& object, Func&& func)
     {
         using RawType = std::remove_cvref_t<T>;
+        constexpr auto items = MetaData<RawType>::info();
 
-        constexpr auto fields = MetaData<RawType>::members();
-
-        std::apply([&](auto&&... field)
+        std::apply([&]<typename... T0>(T0&&... item)
         {
-            (func(field.name, object.*field.ptr), ...);
-        }, fields);
+            ((
+                [&]
+                {
+                    using ItemType = std::decay_t<T0>;
+                    if constexpr (internal::is_field_tag_v<ItemType>)
+                    {
+                        func(item.name, object.*item.ptr);
+                    }
+                }()
+            ), ...);
+        }, items);
     }
 
-#define REFLECT(STRUCT_NAME, ...) \
-template <> \
-struct cppkit::reflection::MetaData<STRUCT_NAME> \
-{ \
-    using T = STRUCT_NAME; \
-    static constexpr auto members() { \
-        return std::make_tuple(__VA_ARGS__); \
-    } \
-};
+    template <typename T, typename Func>
+    constexpr void forEachMethod(T&& object, Func&& func)
+    {
+        using RawType = std::remove_cvref_t<T>;
+        constexpr auto items = MetaData<RawType>::info();
 
-#define FIELD(MEMBER_NAME) \
-cppkit::reflection::makeField(#MEMBER_NAME, &T::MEMBER_NAME)
+        std::apply([&]<typename... T0>(T0&&... item)
+        {
+            ((
+                [&]
+                {
+                    using ItemType = std::decay_t<decltype(item)>;
+                    if constexpr (internal::is_method_tag_v<ItemType>)
+                    {
+                        func(item.name, item.ptr);
+                    }
+                }()
+            ), ...);
+        }, items);
+    }
 }

@@ -32,6 +32,7 @@ add_library(cppkit SHARED
         src/net/udp_datagram.cpp
         src/net/net.cpp
         src/json/json.cpp
+        src/reflection/dynamic.cpp
         src/crypto/base.cpp
         src/crypto/md5.cpp
         src/crypto/sha1.cpp

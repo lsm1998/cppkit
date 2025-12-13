@@ -1,6 +1,8 @@
 #include "cppkit/json/json.hpp"
 #include <iostream>
 
+#include "cppkit/json/json_parser.hpp"
+
 using namespace cppkit::json;
 
 struct Address
@@ -65,7 +67,12 @@ int main(int argc, char* argv[])
         }
     };
 
-    // 调用万能函数
+    // 万能序列化函数
     std::cout << stringify(u) << std::endl;
+
+    // 万能反序列化函数
+    auto t = cppkit::json::fromJson<User>(stringify(u));
+
+    std::cout << t.name << std::endl;
     return 0;
 }
