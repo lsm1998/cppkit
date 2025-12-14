@@ -64,7 +64,6 @@ namespace cppkit::concurrency
         {
             const auto current_tail = _tail.load(std::memory_order_acquire);
 
-            // 检查是否为空
             if (current_tail == _head.load(std::memory_order_acquire))
             {
                 return std::nullopt;
@@ -75,8 +74,7 @@ namespace cppkit::concurrency
         }
 
     private:
-        // C++20 中 atomic 等待/通知机制可以用来实现阻塞，这里仅展示非阻塞
-        // 为了避免伪共享 (False Sharing)，可以加上 alignas
+        // 头尾指针，使用缓存行对齐以减少伪共享
         alignas(64) std::atomic<size_t> _head{0};
         alignas(64) std::atomic<size_t> _tail{0};
 
