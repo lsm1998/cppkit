@@ -12,6 +12,10 @@
 #include <filesystem>
 #include <algorithm>
 #include <format>
+#include <queue>
+#include <thread>
+#include <condition_variable>
+#include <atomic>
 
 namespace cppkit::log
 {
@@ -38,6 +42,12 @@ namespace cppkit::log
     public:
         static Logger& instance();
 
+        ~Logger();
+
+        Logger(const Logger&) = delete;
+
+        Logger& operator=(const Logger&) = delete;
+
         bool init(const std::string& filename = "");
 
         void setLevel(Level lvl);
@@ -60,45 +70,57 @@ namespace cppkit::log
         //   {timestamp} - 当前时间戳，格式 YYYY-MM-DD_HH-MM-SS.mmm
         void setFileNamePattern(const std::string& pattern);
 
+        // 格式化日志记录函数
         template <typename... Args>
         void logf(const Level lvl, const char* file, const int line, const char* func, const char* fmt, Args&&... args)
         {
             if (lvl < level_ || level_ == Level::Off)
                 return;
 
+            // 前置格式化：在锁外完成所有字符串拼接操作
             std::ostringstream oss;
-            oss << "[" << currentTime() << "]"
-                << "[" << levelToString(lvl) << "]"
+
+            // 获取当前时间字符串
+            const std::string timeStr = currentTime();
+
+            // 获取日志级别字符串
+            const std::string levelStr = levelToString(lvl);
+
+            // 拼接完整日志行
+            oss << "[" << timeStr << "]"
+                << "[" << levelStr << "]"
                 << "[" << file << ":" << line << " " << func << "] "
                 << std::vformat(fmt, std::make_format_args(args...)) << "\n";
 
-            const std::string out = oss.str();
+            const std::string logLine = oss.str();
 
-            std::lock_guard lk(mtx_);
-
-            // 是否需要基于日期切换文件
-            if (!filename_pattern_.empty() && rotation_ == Rotation::Daily)
+            // 只在将日志写入队列时持有锁，减少锁持有时间
             {
-                const std::string today = fileDateString();
-                if (current_date_.empty())
-                    current_date_ = today;
-                if (today != current_date_)
+                std::unique_lock lk(queue_mtx_);
+                log_queue_.emplace(logLine);
+
+                // 如果是异步模式，通知后台线程
+                if (is_async_)
                 {
-                    current_date_ = today;
-                    current_open_path_.clear();
+                    queue_cv_.notify_one();
+                    return; // 异步模式直接返回，不需要后续操作
                 }
             }
 
-            ensureLogFileOpenLocked();
-
-            if (filename_pattern_.empty())
-            {
-                rotateIfNeededLocked();
-            }
-            write(out);
+            // 同步模式下继续处理
+            std::unique_lock lk(mtx_);
+            processLogLineLocked(logLine);
         }
 
         void flush() const;
+
+        // 设置是否使用异步模式
+        void setAsync(const bool async)
+        {
+            std::unique_lock lk(queue_mtx_);
+            is_async_ = async;
+            queue_cv_.notify_one();
+        }
 
     private:
         Logger()
@@ -106,11 +128,22 @@ namespace cppkit::log
               rotation_(Rotation::None),
               rotation_size_(DEFAULT_LOG_ROTATION_SIZE),
               max_files_(DEFAULT_MAX_FILES),
-              to_stdout_(true)
+              to_stdout_(true),
+              is_async_(true), // 默认异步模式
+              stop_(false)
         {
+            // 启动后台线程
+            bg_thread_ = std::thread([this]()
+            {
+                this->backgroundWorker();
+            });
         }
 
-        ~Logger();
+        // 后台工作线程函数
+        void backgroundWorker();
+
+        // 处理单条日志行（需要持有mtx_）
+        void processLogLineLocked(const std::string& log_line);
 
         // 确保日志文件已打开
         void ensureLogFileOpenLocked();
@@ -137,7 +170,7 @@ namespace cppkit::log
 
         static std::string vformat(const char* fmt, va_list ap);
 
-        // 互斥锁 保证线程安全
+        // 互斥锁 保证文件操作和配置修改的线程安全
         mutable std::mutex mtx_;
 
         // 日志级别
@@ -169,6 +202,14 @@ namespace cppkit::log
 
         // 当前打开的日志文件流路径
         std::string current_open_path_;
+
+        // 异步模式相关
+        bool is_async_; // 是否使用异步模式
+        std::atomic<bool> stop_; // 线程停止标志
+        mutable std::mutex queue_mtx_; // 队列互斥锁
+        std::condition_variable queue_cv_; // 队列条件变量
+        std::queue<std::string> log_queue_; // 日志队列
+        std::thread bg_thread_; // 后台处理线程
     };
 
     // Trace 级别日志
@@ -188,7 +229,6 @@ namespace cppkit::log
 
     // Fatal 级别日志
 #define CK_LOG_FATAL(fmt, ...) cppkit::log::Logger::instance().logf(cppkit::log::Level::Fatal, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
-
 
     // 设置日志文件路径
 #define CK_LOG_INIT_FILE(path) cppkit::log::Logger::instance().init(path)
@@ -210,4 +250,7 @@ namespace cppkit::log
 
     // 设置归档文件名模式
 #define CK_LOG_SET_FILENAME_PATTERN(p) cppkit::log::Logger::instance().setFileNamePattern(p)
+
+    // 刷新日志缓冲区
+#define CK_LOG_FLUSH() cppkit::log::Logger::instance().flush()
 } // namespace cppkit::log

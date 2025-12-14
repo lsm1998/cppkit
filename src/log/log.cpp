@@ -1,5 +1,4 @@
 #include "cppkit/log/log.hpp"
-#include <format>
 
 namespace cppkit::log
 {
@@ -7,6 +6,19 @@ namespace cppkit::log
     {
         static Logger inst;
         return inst;
+    }
+
+    Logger::~Logger()
+    {
+        stop_ = true;
+        queue_cv_.notify_one();
+
+        if (bg_thread_.joinable())
+        {
+            bg_thread_.join();
+        }
+
+        flush();
     }
 
     bool Logger::init(const std::string& filename)
@@ -134,6 +146,29 @@ namespace cppkit::log
 
     void Logger::flush() const
     {
+        // 先处理队列中的所有日志
+        {
+            std::unique_lock lk(queue_mtx_);
+            // 如果是异步模式，将队列中的日志取出处理
+            if (const_cast<Logger*>(this)->is_async_)
+            {
+                std::queue<std::string> temp_queue;
+                std::swap(const_cast<Logger*>(this)->log_queue_, temp_queue);
+
+                // 解锁队列，处理日志
+                lk.unlock();
+
+                // 持有文件锁处理所有日志
+                std::lock_guard lk2(const_cast<Logger*>(this)->mtx_);
+                while (!temp_queue.empty())
+                {
+                    const_cast<Logger*>(this)->processLogLineLocked(temp_queue.front());
+                    temp_queue.pop();
+                }
+            }
+        }
+
+        // 刷新文件
         std::lock_guard lk(mtx_);
         if (ofs_ && ofs_->is_open())
             ofs_->flush();
@@ -141,10 +176,66 @@ namespace cppkit::log
             std::cout.flush();
     }
 
-    Logger::~Logger()
+    // 后台工作线程函数
+    void Logger::backgroundWorker()
     {
-        flush();
+        while (true)
+        {
+            std::unique_lock<std::mutex> lk(queue_mtx_);
+
+            // 等待有日志或者停止信号
+            queue_cv_.wait(lk, [this]()
+            {
+                return stop_ || !log_queue_.empty();
+            });
+
+            if (stop_ && log_queue_.empty())
+            {
+                break;
+            }
+
+            // 将队列中的日志取出
+            std::queue<std::string> temp_queue;
+            log_queue_.swap(temp_queue);
+
+            // 解锁队列，处理日志
+            lk.unlock();
+
+            // 持有文件锁处理所有日志
+            std::lock_guard lk2(mtx_);
+            while (!temp_queue.empty())
+            {
+                processLogLineLocked(temp_queue.front());
+                temp_queue.pop();
+            }
+        }
     }
+
+    // 处理单条日志行（需要持有mtx_）
+    void Logger::processLogLineLocked(const std::string& log_line)
+    {
+        // 是否需要基于日期切换文件
+        if (!filename_pattern_.empty() && rotation_ == Rotation::Daily)
+        {
+            const std::string today = fileDateString();
+            if (current_date_.empty())
+                current_date_ = today;
+            if (today != current_date_)
+            {
+                current_date_ = today;
+                current_open_path_.clear();
+            }
+        }
+
+        ensureLogFileOpenLocked();
+
+        if (filename_pattern_.empty())
+        {
+            rotateIfNeededLocked();
+        }
+        write(log_line);
+    }
+
 
     void Logger::ensureLogFileOpenLocked()
     {

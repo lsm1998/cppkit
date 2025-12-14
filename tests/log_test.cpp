@@ -11,5 +11,7 @@ int main()
     CK_LOG_INFO("program started...");
 
     CK_LOG_INFO("level = {}", cppkit::Time::Now().Format());
+
+    CK_LOG_FLUSH();
     return 0;
 }
