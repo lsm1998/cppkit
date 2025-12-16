@@ -31,6 +31,9 @@ int main()
     // create server
     HttpServer server("127.0.0.1", 8888);
 
+    // set static directory
+    server.setStaticDir("static", "external");
+
     // register middleware
     server.addMiddleware(std::make_shared<CrossMiddleware>(CrossMiddleware()));
 

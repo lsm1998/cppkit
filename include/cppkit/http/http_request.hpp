@@ -16,7 +16,8 @@ namespace cppkit::http
         Get,
         Post,
         Put,
-        Delete
+        Delete,
+        Head
     };
 
     static const std::unordered_map<HttpMethod, std::string> _httpMethodValMap = {
@@ -24,6 +25,7 @@ namespace cppkit::http
         {HttpMethod::Post, "POST"},
         {HttpMethod::Put, "PUT"},
         {HttpMethod::Delete, "DELETE"},
+        {HttpMethod::Head, "HEAD"}
     };
 
     static std::string httpMethodValue(const HttpMethod method)

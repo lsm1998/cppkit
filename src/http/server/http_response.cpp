@@ -56,7 +56,7 @@ namespace cppkit::http::server
     while (bytesSent < bodySize)
     {
       const size_t chunkSize = std::min(static_cast<size_t>(DEFAULT_BUFFER_SIZE), bodySize - bytesSent);
-      const ssize_t n = ::send(fd, &body[bytesSent], chunkSize, 0);
+      const ssize_t n = send(fd, &body[bytesSent], chunkSize, 0);
       if (n <= 0)
       {
         break;

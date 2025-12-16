@@ -17,6 +17,7 @@ namespace cppkit::http
     constexpr int HTTP_FORBIDDEN = 403;
     constexpr int HTTP_NOT_FOUND = 404;
     constexpr int HTTP_METHOD_NOT_ALLOWED = 405;
+    constexpr int HTTP_PAYLOAD_TOO_LARGE = 413;
     constexpr int HTTP_INTERNAL_SERVER_ERROR = 500;
     constexpr int HTTP_NOT_IMPLEMENTED = 501;
     constexpr int HTTP_BAD_GEOMETRY = 502;
@@ -35,6 +36,7 @@ namespace cppkit::http
         {HTTP_FORBIDDEN, "Forbidden"},
         {HTTP_NOT_FOUND, "Not Found"},
         {HTTP_METHOD_NOT_ALLOWED, "Method Not Allowed"},
+        {HTTP_PAYLOAD_TOO_LARGE, "Payload Too Large"},
         {HTTP_INTERNAL_SERVER_ERROR, "Internal Server Error"},
         {HTTP_NOT_IMPLEMENTED, "Not Implemented"},
         {HTTP_BAD_GEOMETRY, "Bad Gateway"},

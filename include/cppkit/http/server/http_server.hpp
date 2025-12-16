@@ -7,6 +7,7 @@
 #include "cppkit/event/server.hpp"
 #include <string>
 #include <functional>
+#include <filesystem>
 
 namespace cppkit::http::server
 {
@@ -39,27 +40,34 @@ namespace cppkit::http::server
 
         void setHost(std::string host) { _host = std::move(host); }
 
+        void setMaxFileSize(uintmax_t size);
+
+        [[nodiscard]] uintmax_t getMaxFileSize() const { return _maxFileSize; }
+
         void addMiddleware(const std::shared_ptr<HttpMiddleware>& middleware);
 
-        // template <typename T>
-        // void addMiddleware(T&& middleware)
-        // {
-        //     auto ptr = std::make_shared<std::decay_t<T>>(std::forward<T>(middleware));
-        //     this->addMiddleware(ptr);
-        // }
+        void setStaticDir(std::string_view path, std::string_view dir);
 
     private:
         // 添加路由处理函数
         void addRoute(HttpMethod method, const std::string& path, const HttpHandler& handler) const;
 
         // 处理HTTP请求
-        void handleRequest(const HttpRequest& request, HttpResponseWriter& writer) const;
+        void handleRequest(const HttpRequest& request, HttpResponseWriter& writer, int writerFd) const;
+
+        // 静态文件处理
+        bool staticHandler(const HttpRequest& request, HttpResponseWriter& writer, int writerFd) const;
+
+        static size_t sendFile(int fd, const std::filesystem::path& filePath, uintmax_t fileSize);
 
         int _port;
         std::string _host;
         Router _router;
         event::EventLoop _loop{};
         event::TcpServer _server{};
-        std::vector<std::shared_ptr<HttpMiddleware>> _middlewares;
+        std::vector<std::shared_ptr<HttpMiddleware>> _middlewares; // 中间件列表
+        std::string _staticPath; // 静态文件URL路径前缀
+        std::string _staticDir; // 静态文件目录
+        uintmax_t _maxFileSize{50 * 1024 * 1024}; // 50 MB
     };
 } // namespace cppkit::http
