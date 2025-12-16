@@ -27,7 +27,8 @@ add_library(cppkit SHARED
         src/arg_parser.cpp
         src/event/ae.cpp
         src/event/server.cpp
-        src/http/http_respone.cpp
+        src/http/http_response.cpp
+        src/http/url.cpp
         src/log/log.cpp
         src/net/socket.cpp
         src/net/udp_datagram.cpp

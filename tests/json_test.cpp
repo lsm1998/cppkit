@@ -20,7 +20,7 @@ struct User
     std::string name;
     std::vector<double> scores;
     Address address;
-    std::vector<Address> old_addresses;
+    std::vector<Address> oldAddresses;
     std::set<std::string> tags;
     std::map<std::string, int> loginLog;
 };
@@ -31,7 +31,7 @@ REFLECT(User,
         FIELD(name),
         FIELD(scores),
         FIELD(address),
-        FIELD(old_addresses),
+        FIELD(oldAddresses),
         FIELD(tags),
         FIELD(loginLog)
 )
@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
     u.name = "lsm1998";
     u.scores = {99.5, 88.0};
     u.address = {"mast", 10001};
-    u.old_addresses = {{"Beijing", 100086}, {"Tokyo", 100000}};
+    u.oldAddresses = {{"Beijing", 100086}, {"Tokyo", 100000}};
     u.tags = {"Java", "Golang"};
     u.loginLog = {
         {

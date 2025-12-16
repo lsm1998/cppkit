@@ -229,9 +229,6 @@ namespace cppkit::json
         static Json parse(const std::string& s);
     };
 
-    template <typename T>
-    std::string stringify(const T& obj);
-
     namespace internal
     {
         template <typename T>

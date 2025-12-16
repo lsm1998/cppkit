@@ -1,6 +1,27 @@
 #include "cppkit/http/server/http_server.hpp"
 #include "cppkit/json/json.hpp"
-#include <iostream>
+
+class CrossMiddleware : public cppkit::http::server::HttpMiddleware
+{
+public:
+    bool preProcess(const cppkit::http::server::HttpRequest& req,
+                    cppkit::http::server::HttpResponseWriter& res) const override
+    {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        return true;
+    }
+
+    [[nodiscard]] std::string getPath() const override
+    {
+        return "/hello";
+    }
+
+    [[nodiscard]] int getPriority() const override
+    {
+        return 10;
+    }
+};
 
 int main()
 {
@@ -10,8 +31,10 @@ int main()
     // create server
     HttpServer server("127.0.0.1", 8888);
 
-    // register routes
+    // register middleware
+    server.addMiddleware(std::make_shared<CrossMiddleware>(CrossMiddleware()));
 
+    // register routes
     // GET /hello
     server.Get("/hello",
                [](const HttpRequest& req, HttpResponseWriter& res)
