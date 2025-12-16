@@ -1,4 +1,5 @@
 #include "cppkit/fmt.hpp"
+#include "cppkit/strings.hpp"
 
 int main()
 {
@@ -14,7 +15,16 @@ int main()
     // 转义
     cppkit::print("转义效果{{}");
 
-    const auto str = cppkit::sprinf("hello {}", "bob");
+    const auto str = cppkit::sprintf("hello {}", "bob");
     std::cout << str << std::endl;
+
+
+    std::cout << cppkit::replaceAll(str, "l", "L") << std::endl;
+
+    std::cout << cppkit::replace(str, "l", "L", 1) << std::endl;
+
+    auto escaped = cppkit::escapeHtml("<html></html>");
+    std::cout << escaped << std::endl;
+    std::cout << cppkit::unescapeHtml(escaped) << std::endl;
     return 0;
 }

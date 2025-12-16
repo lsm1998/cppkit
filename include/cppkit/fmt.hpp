@@ -95,10 +95,26 @@ template <FormatString Fmt, typename... Args>
 void safe_fmt_print_impl(const Args &...args) {
   std::cout << safe_fmt_sprintf_impl<Fmt>(args...) << std::endl;
 }
+
+template <typename... Args>
+std::string runtime_fmt_sprintf_impl(const char* fmt, const Args &...args) {
+  std::ostringstream oss;
+  format_impl(oss, fmt, args...);
+  return oss.str();
+}
 } // namespace cppkit::inner
+
+
+namespace cppkit{
+  template <typename... Args>
+  std::string format(const char* fmt, Args&&... args) {
+    return cppkit::inner::runtime_fmt_sprintf_impl(fmt, std::forward<Args>(args)...);
+  }
+}
+
 
 #define print(fmt_str, ...) inner::safe_fmt_print_impl<fmt_str>(__VA_ARGS__)
 
-#define sprinf(fmt_str, ...) inner::safe_fmt_sprintf_impl<fmt_str>(__VA_ARGS__)
+#define sprintf(fmt_str, ...) inner::safe_fmt_sprintf_impl<fmt_str>(__VA_ARGS__)
 
 
