@@ -11,11 +11,15 @@
 #include <sstream>
 #include <filesystem>
 #include <algorithm>
-#include <format>
 #include <queue>
 #include <thread>
 #include <condition_variable>
 #include <atomic>
+#if defined(__cpp_lib_format)
+    #include <format>
+#else
+    #include "cppkit/fmt.hpp"
+#endif
 
 namespace cppkit::log
 {
@@ -86,11 +90,16 @@ namespace cppkit::log
             // 获取日志级别字符串
             const std::string levelStr = levelToString(lvl);
 
-            // 拼接完整日志行
-            oss << "[" << timeStr << "]"
+             oss << "[" << timeStr << "]"
                 << "[" << levelStr << "]"
-                << "[" << file << ":" << line << " " << func << "] "
-                << std::vformat(fmt, std::make_format_args(args...)) << "\n";
+                << "[" << file << ":" << line << " " << func << "] ";
+
+            // 拼接完整日志行
+            #if defined(__cpp_lib_format)
+                oss << std::vformat(fmt, std::make_format_args(args...)) << "\n";
+            #else
+                oss << cppkit::format(fmt, std::forward<Args>(args)...) << "\n";
+            #endif            
 
             const std::string logLine = oss.str();
 
