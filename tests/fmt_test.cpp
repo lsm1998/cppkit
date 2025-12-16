@@ -1,4 +1,5 @@
 #include "cppkit/fmt.hpp"
+#include "cppkit/strings.hpp"
 
 int main()
 {
@@ -16,5 +17,14 @@ int main()
 
     const auto str = cppkit::sprintf("hello {}", "bob");
     std::cout << str << std::endl;
+
+
+    std::cout << cppkit::replaceAll(str, "l", "L") << std::endl;
+
+    std::cout << cppkit::replace(str, "l", "L", 1) << std::endl;
+
+    auto escaped = cppkit::escapeHtml("<html></html>");
+    std::cout << escaped << std::endl;
+    std::cout << cppkit::unescapeHtml(escaped) << std::endl;
     return 0;
 }

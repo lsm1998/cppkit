@@ -66,13 +66,104 @@ namespace cppkit
 
   std::string replaceAll(std::string s, const std::string& from, const std::string& to)
   {
-    size_t pos = 0;
-    while ((pos = s.find(from, pos)) != std::string::npos)
+    return replace(s, from, to, -1);
+  }
+
+  std::string replace(std::string s, const std::string& from, const std::string& to, size_t maxReplaces)
+  {
+    if(from.empty() || maxReplaces == 0)
     {
-      s.replace(pos, from.length(), to);
-      pos += to.length();
+      return s;
     }
-    return s;
+
+    std::string result;
+    result.reserve(s.size());
+
+    size_t lastPos = 0;
+    size_t findPos = 0;
+    size_t count = 0;
+
+    while ((findPos = s.find(from, lastPos)) != std::string::npos)
+    {
+        result.append(s, lastPos, findPos - lastPos);
+        result.append(to);
+        
+        lastPos = findPos + from.length();
+        if (++count == maxReplaces)
+        {
+            break;
+        }
+    }
+    result.append(s, lastPos, std::string::npos);
+    return result;
+  }
+
+  std::string escapeHtml(const std::string& s)
+  {
+    std::string result;
+    result.reserve(s.size());
+
+    for (char c : s)
+    {
+      switch (c)
+      {
+        case '&': result.append("&amp;"); break;
+        case '<': result.append("&lt;"); break;
+        case '>': result.append("&gt;"); break;
+        case '"': result.append("&quot;"); break;
+        case '\'': result.append("&#39;"); break;
+        default: result.push_back(c); break;
+      }
+    }
+
+    return result;
+  }
+
+  std::string unescapeHtml(const std::string& s)
+  {
+    std::string res;
+    res.reserve(s.size());
+
+    for (size_t i = 0; i < s.size(); ++i)
+    {
+        if (s[i] == '&')
+        {
+            if (s.compare(i, 5, "&amp;") == 0) 
+            {
+                res.push_back('&');
+            }
+            else if (s.compare(i, 4, "&lt;") == 0) 
+            {
+                res.push_back('<');
+                i += 3;
+            }
+            else if (s.compare(i, 4, "&gt;") == 0) 
+            {
+                res.push_back('>');
+                i += 3;
+            }
+            else if (s.compare(i, 6, "&quot;") == 0) 
+            {
+                res.push_back('"');
+                i += 5;
+            }
+            else if (s.compare(i, 5, "&#39;") == 0) 
+            {
+                res.push_back('\'');
+                i += 4;
+            }
+            else 
+            {
+                res.push_back(s[i]);
+            }
+        }
+        else
+        {
+            res.push_back(s[i]);
+        }
+    }
+
+    return res;
   }
 
 }  // namespace cppkit
