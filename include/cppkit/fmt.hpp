@@ -49,7 +49,7 @@ namespace cppkit::inner
         }
     };
 
-    inline void format_impl(std::ostringstream& oss, const char* fmt)
+    inline void formatImpl(std::ostringstream& oss, const char* fmt)
     {
         while (*fmt)
         {
@@ -70,8 +70,8 @@ namespace cppkit::inner
     }
 
     template <typename T, typename... Args>
-    void format_impl(std::ostringstream& oss, const char* fmt, const T& arg,
-                     const Args&... args)
+    void formatImpl(std::ostringstream& oss, const char* fmt, const T& arg,
+                    const Args&... args)
     {
         while (*fmt)
         {
@@ -90,7 +90,7 @@ namespace cppkit::inner
             if (fmt[0] == '{' && fmt[1] == '}')
             {
                 oss << arg;
-                format_impl(oss, fmt + 2, args...);
+                formatImpl(oss, fmt + 2, args...);
                 return;
             }
             oss << *fmt++;
@@ -98,7 +98,7 @@ namespace cppkit::inner
     }
 
     template <FormatString Fmt, typename... Args>
-    std::string safe_fmt_sprintf_impl(const Args&... args)
+    std::string safeFmtSprintfImpl(const Args&... args)
     {
         constexpr size_t expected = Fmt.get_placeholder_count();
         constexpr size_t actual = sizeof...(Args);
@@ -107,21 +107,21 @@ namespace cppkit::inner
                       "Number of placeholders does not match number of arguments");
 
         std::ostringstream oss;
-        format_impl(oss, Fmt.str, args...);
+        formatImpl(oss, Fmt.str, args...);
         return oss.str();
     }
 
     template <FormatString Fmt, typename... Args>
-    void safe_fmt_print_impl(const Args&... args)
+    void safeFmtPrintImpl(const Args&... args)
     {
-        std::cout << safe_fmt_sprintf_impl<Fmt>(args...) << std::endl;
+        std::cout << safeFmtSprintfImpl<Fmt>(args...) << std::endl;
     }
 
     template <typename... Args>
-    std::string runtime_fmt_sprintf_impl(const char* fmt, const Args&... args)
+    std::string runtimeFmtSprintfImpl(const char* fmt, const Args&... args)
     {
         std::ostringstream oss;
-        format_impl(oss, fmt, args...);
+        formatImpl(oss, fmt, args...);
         return oss.str();
     }
 } // namespace cppkit::inner
@@ -132,11 +132,11 @@ namespace cppkit
     template <typename... Args>
     std::string format(const char* fmt, Args&&... args)
     {
-        return cppkit::inner::runtime_fmt_sprintf_impl(fmt, std::forward<Args>(args)...);
+        return inner::runtimeFmtSprintfImpl(fmt, std::forward<Args>(args)...);
     }
 }
 
 
-#define print(fmt_str, ...) inner::safe_fmt_print_impl<fmt_str>(__VA_ARGS__)
+#define print(fmt_str, ...) inner::safeFmtPrintImpl<fmt_str>(__VA_ARGS__)
 
-#define sprintf(fmt_str, ...) inner::safe_fmt_sprintf_impl<fmt_str>(__VA_ARGS__)
+#define sprintf(fmt_str, ...) inner::safeFmtSprintfImpl<fmt_str>(__VA_ARGS__)
