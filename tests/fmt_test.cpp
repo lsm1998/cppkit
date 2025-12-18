@@ -23,7 +23,7 @@ int main()
 
     std::cout << cppkit::replace(str, "l", "L", 1) << std::endl;
 
-    auto escaped = cppkit::escapeHtml("<html></html>");
+    const auto escaped = cppkit::escapeHtml("<html></html>");
     std::cout << escaped << std::endl;
     std::cout << cppkit::unescapeHtml(escaped) << std::endl;
     return 0;

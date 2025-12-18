@@ -3,6 +3,8 @@
 #include <functional>
 #include <thread>
 #include <syncstream>
+#include <string>
+#include <csignal>
 
 namespace cppkit
 {
