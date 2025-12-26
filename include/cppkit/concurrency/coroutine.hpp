@@ -9,6 +9,7 @@
 #include <vector>
 #include <atomic>
 #include <functional>
+#include <utility>
 
 namespace cppkit::concurrency
 {
