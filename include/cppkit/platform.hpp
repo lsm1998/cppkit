@@ -14,7 +14,7 @@ namespace cppkit
     constexpr bool isLinuxPlatform = false;
 #endif
 
-#ifdef defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
     constexpr bool isWindowsPlatform = true;
 #else
     constexpr bool isWindowsPlatform = false;
