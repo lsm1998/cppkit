@@ -14,7 +14,7 @@ namespace cppkit::http::server
 
     using NextFunc = std::function<void()>;
 
-    using MiddlewareHandler = std::function<void(const HttpRequest&, HttpResponseWriter&,
+    using MiddlewareHandler = std::function<void(HttpRequest&, HttpResponseWriter&,
                                                  const NextFunc&)>;
 
     struct RouteNode
@@ -24,7 +24,7 @@ namespace cppkit::http::server
         bool isWild = false;
         std::unordered_map<std::string, std::unique_ptr<RouteNode>> children;
         std::unordered_map<std::string, HttpHandler> handlers;
-        std::list<MiddlewareHandler> middlewares;
+        std::list<MiddlewareHandler> middlewares{};
     };
 
     class Router
@@ -34,13 +34,19 @@ namespace cppkit::http::server
         {
         }
 
-        void addRoute(HttpMethod method, const std::string& path, const HttpHandler& handler) const;
+        void addRoute(HttpMethod method, const std::string& path, const HttpHandler& handler);
 
-        void addMiddleware(std::string_view path, const MiddlewareHandler& middleware) const;
+        void addMiddleware(const std::string& path, const MiddlewareHandler& middleware);
 
         [[nodiscard]] bool exists(HttpMethod method, const std::string& path) const;
 
         [[nodiscard]] std::list<MiddlewareHandler> getMiddlewares(const std::string& path) const;
+
+        [[nodiscard]] static RouteNode* findNode(RouteNode* node,
+                                                 const std::vector<std::string>& parts,
+                                                 size_t index,
+                                                 std::unordered_map<std::string, std::string>& params,
+                                                 std::list<MiddlewareHandler>* collectedMiddlewares);
 
         [[nodiscard]] HttpHandler find(HttpMethod method, const std::string& path) const;
 

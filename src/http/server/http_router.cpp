@@ -5,13 +5,17 @@
 
 namespace cppkit::http::server
 {
-    void Router::addRoute(const HttpMethod method, const std::string& path, const HttpHandler& handler) const
+    void Router::addRoute(const HttpMethod method, const std::string& path, const HttpHandler& handler)
     {
         const auto parts = split(path, '/');
         RouteNode* node = root.get();
 
         for (const auto& part : parts)
         {
+            if (part.empty())
+            {
+                continue;
+            }
             std::string key = part;
             bool isParam = false, isWild = false;
 
@@ -38,13 +42,17 @@ namespace cppkit::http::server
         node->handlers[httpMethodValue(method)] = handler;
     }
 
-    void Router::addMiddleware(const std::string_view path, const MiddlewareHandler& middleware) const
+    void Router::addMiddleware(const std::string& path, const MiddlewareHandler& middleware)
     {
         const auto parts = split(path, '/');
         RouteNode* node = root.get();
 
         for (const auto& part : parts)
         {
+            if (part.empty())
+            {
+                continue;
+            }
             std::string key = part;
             bool isParam = false, isWild = false;
 
@@ -81,13 +89,68 @@ namespace cppkit::http::server
 
     std::list<MiddlewareHandler> Router::getMiddlewares(const std::string& path) const
     {
-        std::unordered_map<std::string, std::string> params;
+        std::list<MiddlewareHandler> collected;
         const auto parts = split(path, '/');
-        if (const RouteNode* node = match(root.get(), parts, 0, params); node)
+        RouteNode* current_node = root.get();
+
+        collected.insert(collected.end(), current_node->middlewares.begin(), current_node->middlewares.end());
+
+        for (const auto& part : parts)
         {
-            return node->middlewares;
+            if (part.empty())
+            {
+                continue;
+            }
+
+            bool found = false;
+            std::string key = part;
+            // bool isParam = false, isWild = false;
+
+            if (!part.empty() && part[0] == ':')
+            {
+                key = ":";
+                // isParam = true;
+            }
+            else if (!part.empty() && part[0] == '*')
+            {
+                key = "*";
+                // isWild = true;
+            }
+
+            if (current_node->children.contains(key))
+            {
+                current_node = current_node->children[key].get();
+                collected.insert(collected.end(), current_node->middlewares.begin(), current_node->middlewares.end());
+                found = true;
+            }
+            else
+            {
+                for (const auto& childPtr : current_node->children | std::views::values)
+                {
+                    if (childPtr->isParam || childPtr->isWild)
+                    {
+                        current_node = childPtr.get();
+                        collected.insert(collected.end(), current_node->middlewares.begin(),
+                                         current_node->middlewares.end());
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!found)
+            {
+                break;
+            }
+
+            if (current_node->isWild)
+            {
+                collected.insert(collected.end(), current_node->middlewares.begin(), current_node->middlewares.end());
+                break;
+            }
         }
-        return {};
+
+        return collected;
     }
 
     HttpHandler Router::find(const HttpMethod method, const std::string& path) const
@@ -119,12 +182,23 @@ namespace cppkit::http::server
             return node;
         }
 
-        const std::string& part = parts[index];
+        size_t currentIndex = index;
+        while (currentIndex < parts.size() && parts[currentIndex].empty())
+        {
+            ++currentIndex;
+        }
+
+        if (currentIndex == parts.size() || node->isWild)
+        {
+            return node;
+        }
+
+        const std::string& part = parts[currentIndex];
 
         if (node->children.contains(part))
         {
             RouteNode* child = node->children[part].get();
-            if (RouteNode* result = match(child, parts, index + 1, params))
+            if (RouteNode* result = match(child, parts, currentIndex + 1, params))
             {
                 return result;
             }
@@ -135,7 +209,7 @@ namespace cppkit::http::server
             if (RouteNode* child = childPtr.get(); child->isParam)
             {
                 params[child->segment.substr(1)] = part;
-                if (RouteNode* result = match(child, parts, index + 1, params))
+                if (RouteNode* result = match(child, parts, currentIndex + 1, params))
                 {
                     return result;
                 }
@@ -144,7 +218,7 @@ namespace cppkit::http::server
             else if (child->isWild)
             {
                 params[child->segment.substr(1)] = join(
-                    std::vector<std::string>(parts.begin() + static_cast<long>(index), parts.end()),
+                    std::vector(parts.begin() + static_cast<long>(index), parts.end()),
                     "/");
                 return child;
             }

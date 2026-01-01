@@ -23,13 +23,13 @@ namespace cppkit::http::server
 
         void stop();
 
-        void Get(const std::string& path, const HttpHandler& handler) const;
+        void Get(const std::string& path, const HttpHandler& handler);
 
-        void Post(const std::string& path, const HttpHandler& handler) const;
+        void Post(const std::string& path, const HttpHandler& handler);
 
-        void Put(const std::string& path, const HttpHandler& handler) const;
+        void Put(const std::string& path, const HttpHandler& handler);
 
-        void Delete(const std::string& path, const HttpHandler& handler) const;
+        void Delete(const std::string& path, const HttpHandler& handler);
 
         GrouterGroup group(const std::string& prefix);
 
@@ -47,16 +47,16 @@ namespace cppkit::http::server
 
         [[nodiscard]] uintmax_t getMaxFileSize() const { return _maxFileSize; }
 
-        void addMiddleware(std::string_view path, const MiddlewareHandler& middleware) const;
+        void addMiddleware(const std::string& path, const MiddlewareHandler& middleware);
 
         void setStaticDir(std::string_view path, std::string_view dir);
 
     private:
         // 添加路由处理函数
-        void addRoute(HttpMethod method, const std::string& path, const HttpHandler& handler) const;
+        void addRoute(HttpMethod method, const std::string& path, const HttpHandler& handler);
 
         // 处理HTTP请求
-        void handleRequest(const HttpRequest& request, HttpResponseWriter& writer, int writerFd) const;
+        void handleRequest(HttpRequest& request, HttpResponseWriter& writer, int writerFd) const;
 
         // 静态文件处理
         bool staticHandler(const HttpRequest& request, HttpResponseWriter& writer, int writerFd) const;

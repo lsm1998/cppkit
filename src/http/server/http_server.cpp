@@ -29,7 +29,7 @@ namespace cppkit::http::server
             HttpResponseWriter writer(conn.getFd());
 
             // 解析HTTP请求
-            const HttpRequest request = HttpRequest::parse(conn.getFd());
+            HttpRequest request = HttpRequest::parse(conn.getFd());
 
             // 处理请求
             handleRequest(request, writer, conn.getFd());
@@ -46,22 +46,22 @@ namespace cppkit::http::server
         this->_server.stop();
     }
 
-    void HttpServer::Get(const std::string& path, const HttpHandler& handler) const
+    void HttpServer::Get(const std::string& path, const HttpHandler& handler)
     {
         this->addRoute(HttpMethod::Get, path, handler);
     }
 
-    void HttpServer::Post(const std::string& path, const HttpHandler& handler) const
+    void HttpServer::Post(const std::string& path, const HttpHandler& handler)
     {
         this->addRoute(HttpMethod::Post, path, handler);
     }
 
-    void HttpServer::Put(const std::string& path, const HttpHandler& handler) const
+    void HttpServer::Put(const std::string& path, const HttpHandler& handler)
     {
         this->addRoute(HttpMethod::Put, path, handler);
     }
 
-    void HttpServer::Delete(const std::string& path, const HttpHandler& handler) const
+    void HttpServer::Delete(const std::string& path, const HttpHandler& handler)
     {
         this->addRoute(HttpMethod::Delete, path, handler);
     }
@@ -80,12 +80,8 @@ namespace cppkit::http::server
         _maxFileSize = size;
     }
 
-    void HttpServer::addMiddleware(std::string_view path, const MiddlewareHandler& middleware) const
+    void HttpServer::addMiddleware(const std::string& path, const MiddlewareHandler& middleware)
     {
-        if (path.starts_with("/"))
-        {
-            path = path.substr(1);
-        }
         _middleware.addMiddleware(path, middleware);
     }
 
@@ -99,7 +95,7 @@ namespace cppkit::http::server
         }
     }
 
-    void HttpServer::addRoute(const HttpMethod method, const std::string& path, const HttpHandler& handler) const
+    void HttpServer::addRoute(const HttpMethod method, const std::string& path, const HttpHandler& handler)
     {
         // 判断路由是否已存在
         if (this->_router.exists(method, path))
@@ -110,7 +106,7 @@ namespace cppkit::http::server
         std::cout << "Added route: " << httpMethodValue(method) << " " << path << std::endl;
     }
 
-    void HttpServer::handleRequest(const HttpRequest& request, HttpResponseWriter& writer, const int writerFd) const
+    void HttpServer::handleRequest(HttpRequest& request, HttpResponseWriter& writer, const int writerFd) const
     {
         std::unordered_map<std::string, std::string> params;
         const auto handler = _router.find(request.getMethod(), request.getPath(), params);
@@ -126,8 +122,7 @@ namespace cppkit::http::server
         }
         request.setParams(params);
 
-        const auto middlewares = _router.getMiddlewares(request.getPath());
-        std::cout << "middlewares size: " << middlewares.size() << std::endl;
+        const auto middlewares = _middleware.getMiddlewares(request.getPath());
 
         if (middlewares.empty())
         {
@@ -151,6 +146,7 @@ namespace cppkit::http::server
                 // 中间件没有调用next，停止处理
                 return;
             }
+            nextCalled = false;
         }
         handler(request, writer);
     }
