@@ -45,7 +45,7 @@ int main()
                [](const HttpRequest& req, HttpResponseWriter& res)
                {
                    res.setStatusCode(cppkit::http::HTTP_OK);
-                   res.setHeader("Content-Type", "text/plain");
+                   res.setContentType("text/plain");
                    res.write("Hello, World!");
                });
 
@@ -56,7 +56,7 @@ int main()
                    // extract path parameter
                    const std::string name = req.getParam("name");
                    res.setStatusCode(cppkit::http::HTTP_OK);
-                   res.setHeader("Content-Type", "text/plain");
+                   res.setContentType("text/plain");
                    res.write("Hello, " + name + "!");
                });
 
@@ -68,7 +68,7 @@ int main()
                     auto body = req.readBody();
 
                     res.setStatusCode(cppkit::http::HTTP_OK);
-                    res.setHeader("Content-Type", "application/json");
+                    res.setContentType("application/json");
 
                     auto result = Json{};
                     result["status"] = 200;
@@ -94,7 +94,7 @@ int main()
               {
                   const std::string userId = req.getParam("id");
                   res.setStatusCode(cppkit::http::HTTP_OK);
-                  res.setHeader("Content-Type", "text/plain");
+                  res.setContentType("text/plain");
                   res.write("User ID: " + userId);
               });
 
