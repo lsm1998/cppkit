@@ -1,28 +1,6 @@
 #include "cppkit/http/server/http_server.hpp"
 #include "cppkit/json/json.hpp"
 
-class CrossMiddleware : public cppkit::http::server::HttpMiddleware
-{
-public:
-    bool preProcess(const cppkit::http::server::HttpRequest& req,
-                    cppkit::http::server::HttpResponseWriter& res) const override
-    {
-        res.setHeader("Access-Control-Allow-Origin", "*");
-        res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        return true;
-    }
-
-    [[nodiscard]] std::string getPath() const override
-    {
-        return "/hello";
-    }
-
-    [[nodiscard]] int getPriority() const override
-    {
-        return 10;
-    }
-};
-
 int main()
 {
     using namespace cppkit::http::server;
@@ -35,7 +13,14 @@ int main()
     server.setStaticDir("static", "external");
 
     // register middleware
-    server.addMiddleware(std::make_shared<CrossMiddleware>(CrossMiddleware()));
+    server.addMiddleware("/hello",
+                         [](const HttpRequest& req, HttpResponseWriter& res, const NextFunc& next)
+                         {
+                             // log request
+                             std::cout << httpMethodValue(req.getMethod()) << " " << req.getPath() << std::endl;
+                             // call next middleware/handler
+                             next();
+                         });
 
     // register routes
     // GET /hello

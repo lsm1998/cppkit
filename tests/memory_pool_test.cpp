@@ -23,17 +23,14 @@ void test_single_thread()
 {
     cppkit::MemoryPool<Student> pool;
     Student* stu1 = pool.create();
-    stu1->id = 1001;
-    std::strcpy(stu1->name, "Alice");
-    stu1->score = 95.5f;
-    Student* stu2 = pool.create(1002, "Bob", 88.0f);
+
     // 打印内存地址
     std::cout << "Student 1 Address: " << stu1 << std::endl;
-    std::cout << "Student 2 Address: " << stu2 << std::endl;
     pool.destroy(stu1);
-    pool.destroy(stu2);
-    std::cout << "Student 1 Address: " << stu1 << std::endl;
+
+    Student* stu2 = pool.create(1002, "Bob", 88.0f);
     std::cout << "Student 2 Address: " << stu2 << std::endl;
+    pool.destroy(stu2);
 }
 
 // 多线程测试

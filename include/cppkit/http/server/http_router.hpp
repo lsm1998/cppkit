@@ -3,46 +3,57 @@
 #include "http_request.hpp"
 #include "http_response.hpp"
 #include <string>
+#include <list>
 #include <unordered_map>
 #include <functional>
 #include <memory>
 
 namespace cppkit::http::server
 {
-  using HttpHandler = std::function<void(const HttpRequest&, HttpResponseWriter&)>;
+    using HttpHandler = std::function<void(const HttpRequest&, HttpResponseWriter&)>;
 
-  struct RouteNode
-  {
-    std::string segment;
-    bool isParam = false;
-    bool isWild = false;
-    std::unordered_map<std::string, std::unique_ptr<RouteNode>> children;
-    std::unordered_map<std::string, HttpHandler> handlers;
-  };
+    using NextFunc = std::function<void()>;
 
-  class Router
-  {
-  public:
-    Router() : root(std::make_unique<RouteNode>())
+    using MiddlewareHandler = std::function<void(const HttpRequest&, HttpResponseWriter&,
+                                                 const NextFunc&)>;
+
+    struct RouteNode
     {
-    }
+        std::string segment;
+        bool isParam = false;
+        bool isWild = false;
+        std::unordered_map<std::string, std::unique_ptr<RouteNode>> children;
+        std::unordered_map<std::string, HttpHandler> handlers;
+        std::list<MiddlewareHandler> middlewares;
+    };
 
-    void addRoute(HttpMethod method, const std::string& path, const HttpHandler& handler) const;
+    class Router
+    {
+    public:
+        Router() : root(std::make_unique<RouteNode>())
+        {
+        }
 
-    [[nodiscard]] bool exists(HttpMethod method, const std::string& path) const;
+        void addRoute(HttpMethod method, const std::string& path, const HttpHandler& handler) const;
 
-    [[nodiscard]] HttpHandler find(HttpMethod method, const std::string& path) const;
+        void addMiddleware(std::string_view path, const MiddlewareHandler& middleware) const;
 
-    [[nodiscard]] HttpHandler find(HttpMethod method,
-        const std::string& path,
-        std::unordered_map<std::string, std::string>& params) const;
+        [[nodiscard]] bool exists(HttpMethod method, const std::string& path) const;
 
-  private:
-    static RouteNode* match(RouteNode* node,
-        const std::vector<std::string>& parts,
-        size_t index,
-        std::unordered_map<std::string, std::string>& params);
+        [[nodiscard]] std::list<MiddlewareHandler> getMiddlewares(const std::string& path) const;
 
-    std::unique_ptr<RouteNode> root;
-  };
+        [[nodiscard]] HttpHandler find(HttpMethod method, const std::string& path) const;
+
+        [[nodiscard]] HttpHandler find(HttpMethod method,
+                                       const std::string& path,
+                                       std::unordered_map<std::string, std::string>& params) const;
+
+    private:
+        static RouteNode* match(RouteNode* node,
+                                const std::vector<std::string>& parts,
+                                size_t index,
+                                std::unordered_map<std::string, std::string>& params);
+
+        std::unique_ptr<RouteNode> root;
+    };
 } // namespace cppkit::http

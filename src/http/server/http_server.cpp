@@ -2,6 +2,7 @@
 #include "cppkit/event/server.hpp"
 #include "cppkit/strings.hpp"
 #include "cppkit/platform.hpp"
+#include "cppkit/http/server/router_group.hpp"
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -65,6 +66,11 @@ namespace cppkit::http::server
         this->addRoute(HttpMethod::Delete, path, handler);
     }
 
+    GrouterGroup HttpServer::group(const std::string& prefix)
+    {
+        return {this, prefix};
+    }
+
     void HttpServer::setMaxFileSize(const uintmax_t size)
     {
         if (size <= 0)
@@ -74,13 +80,13 @@ namespace cppkit::http::server
         _maxFileSize = size;
     }
 
-    void HttpServer::addMiddleware(const std::shared_ptr<HttpMiddleware>& middleware)
+    void HttpServer::addMiddleware(std::string_view path, const MiddlewareHandler& middleware) const
     {
-        _middlewares.push_back(middleware);
-        std::ranges::sort(_middlewares, [](const auto& a, const auto& b)
+        if (path.starts_with("/"))
         {
-            return a->getPriority() > b->getPriority();
-        });
+            path = path.substr(1);
+        }
+        _middleware.addMiddleware(path, middleware);
     }
 
     void HttpServer::setStaticDir(const std::string_view path, const std::string_view dir)
@@ -104,7 +110,7 @@ namespace cppkit::http::server
         std::cout << "Added route: " << httpMethodValue(method) << " " << path << std::endl;
     }
 
-    void HttpServer::handleRequest(const HttpRequest& request, HttpResponseWriter& writer, int writerFd) const
+    void HttpServer::handleRequest(const HttpRequest& request, HttpResponseWriter& writer, const int writerFd) const
     {
         std::unordered_map<std::string, std::string> params;
         const auto handler = _router.find(request.getMethod(), request.getPath(), params);
@@ -120,34 +126,33 @@ namespace cppkit::http::server
         }
         request.setParams(params);
 
+        const auto middlewares = _router.getMiddlewares(request.getPath());
+        std::cout << "middlewares size: " << middlewares.size() << std::endl;
+
+        if (middlewares.empty())
+        {
+            // 调用路由处理函数
+            handler(request, writer);
+            return;
+        }
+
+        bool nextCalled = false;
+        const NextFunc next = [&nextCalled]()
+        {
+            nextCalled = true;
+        };
+
         // 处理中间件
-        for (const auto& middleware : _middlewares)
+        for (const auto& middleware : middlewares)
         {
-            // 路径匹配
-            const std::string mwPath = middleware->getPath();
-            if (mwPath != "/" && !startsWith(request.getPath(), mwPath))
+            middleware(request, writer, next);
+            if (!nextCalled)
             {
-                continue;
-            }
-            if (!middleware->preProcess(request, writer))
-            {
-                return; // 中断请求处理
+                // 中间件没有调用next，停止处理
+                return;
             }
         }
-
-        // 调用路由处理函数
         handler(request, writer);
-
-        // 后置处理中间件
-        for (const auto& middleware : _middlewares)
-        {
-            const std::string mwPath = middleware->getPath();
-            if (mwPath != "/" && !startsWith(request.getPath(), mwPath))
-            {
-                continue;
-            }
-            middleware->postProcess(request, writer);
-        }
     }
 
     bool HttpServer::staticHandler(const HttpRequest& request, HttpResponseWriter& writer, int writerFd) const

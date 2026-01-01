@@ -3,7 +3,6 @@
 #include "http_request.hpp"
 #include "http_router.hpp"
 #include "http_response.hpp"
-#include "middleware.hpp"
 #include "cppkit/event/server.hpp"
 #include <string>
 #include <functional>
@@ -11,6 +10,8 @@
 
 namespace cppkit::http::server
 {
+    class GrouterGroup;
+
     class HttpServer
     {
     public:
@@ -30,6 +31,8 @@ namespace cppkit::http::server
 
         void Delete(const std::string& path, const HttpHandler& handler) const;
 
+        GrouterGroup group(const std::string& prefix);
+
         ~HttpServer() = default;
 
         void setPort(const int port) { _port = port; }
@@ -44,7 +47,7 @@ namespace cppkit::http::server
 
         [[nodiscard]] uintmax_t getMaxFileSize() const { return _maxFileSize; }
 
-        void addMiddleware(const std::shared_ptr<HttpMiddleware>& middleware);
+        void addMiddleware(std::string_view path, const MiddlewareHandler& middleware) const;
 
         void setStaticDir(std::string_view path, std::string_view dir);
 
@@ -63,9 +66,9 @@ namespace cppkit::http::server
         int _port;
         std::string _host;
         Router _router;
+        Router _middleware;
         event::EventLoop _loop{};
         event::TcpServer _server{};
-        std::vector<std::shared_ptr<HttpMiddleware>> _middlewares; // 中间件列表
         std::string _staticPath; // 静态文件URL路径前缀
         std::string _staticDir; // 静态文件目录
         uintmax_t _maxFileSize{50 * 1024 * 1024}; // 50 MB
