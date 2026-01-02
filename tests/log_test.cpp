@@ -10,6 +10,8 @@ void logger()
     logger.setFileNamePattern("{year}-{month}/access-{date}.log");
 
     CK_LOG_INFO("program started...");
+
+    CK_LOG_ERROR("level = {}", cppkit::Time::Now().Format());
 }
 
 int main()
