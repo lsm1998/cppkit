@@ -159,7 +159,7 @@ namespace cppkit::http::server
       if (offset >= _body.size())
         return 0;
       const size_t readLen = std::min(maxLen, _body.size() - offset);
-      std::memcpy(buffer, _body.data() + offset, readLen);
+      std::copy_n(_body.begin() + static_cast<long>(offset), readLen, buffer);
       return readLen;
     }
 
