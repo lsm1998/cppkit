@@ -1,45 +1,15 @@
 #include "cppkit/http/server/http_request.hpp"
 #include <unistd.h>
 #include <sstream>
-
-constexpr int BUFFER_SIZE = 1024;
+#include <thread>
 
 namespace cppkit::http::server
 {
-    HttpRequest HttpRequest::parse(const int fd)
+    HttpRequest HttpRequest::parse(int fd, const std::string& raw, const std::string& extra_data)
     {
         HttpRequest request{fd};
-
-        std::string raw_request;
-        char buffer[BUFFER_SIZE];
-
-        const std::string header_delimiter = "\r\n\r\n";
-
-        while (true)
-        {
-            const ssize_t len = read(fd, buffer, BUFFER_SIZE);
-            if (len <= 0)
-            {
-                throw std::runtime_error("Failed to read from socket.");
-            }
-
-            raw_request.append(buffer, len);
-
-            // 检查是否已经读取到头部结束标志
-            if (raw_request.find(header_delimiter) != std::string::npos)
-            {
-                // 是否存在多读的数据
-                const size_t header_end_pos = raw_request.find(header_delimiter) + header_delimiter.length();
-                return parse(fd, raw_request, raw_request.substr(header_end_pos));
-            }
-        }
-        return request;
-    }
-
-    HttpRequest HttpRequest::parse(const int fd, const std::string& raw, const std::string& extra_data)
-    {
-        HttpRequest request{fd};
-        request.extraData = extra_data;
+        request.extraData.reserve(extra_data.size());
+        request.extraData.insert(request.extraData.end(), extra_data.begin(), extra_data.end());
 
         std::istringstream stream(raw);
         std::string line;
@@ -71,10 +41,10 @@ namespace cppkit::http::server
         }
 
         // 解析查询参数
-        if (size_t qpos = request.path.find('?'); qpos != std::string::npos)
+        if (size_t qPos = request.path.find('?'); qPos != std::string::npos)
         {
-            std::string query_string = request.path.substr(qpos + 1);
-            request.path = request.path.substr(0, qpos);
+            std::string query_string = request.path.substr(qPos + 1);
+            request.path = request.path.substr(0, qPos);
             std::istringstream query_stream(query_string);
             std::string pair;
             while (std::getline(query_stream, pair, '&'))
@@ -130,24 +100,40 @@ namespace cppkit::http::server
 
     std::vector<u_int8_t> HttpRequest::readBody() const
     {
-        std::vector<u_int8_t> body;
+        if (readBodyFlag)
+        {
+            return _body;
+        }
         if (const size_t contentLength = std::stoul(getHeader("Content-Length")); contentLength > 0)
         {
-            body.insert(body.end(), extraData.begin(), extraData.end());
+            _body.reserve(contentLength + extraData.size());
+            _body.insert(_body.end(), extraData.begin(), extraData.end());
             size_t remaining = contentLength - extraData.size();
-            char buffer[BUFFER_SIZE];
+            char buffer[DEFAULT_BUFFER_SIZE];
             while (remaining > 0)
             {
-                const ssize_t len = read(this->_fd, buffer, std::min(BUFFER_SIZE, static_cast<int>(remaining)));
+                const ssize_t len = read(this->_fd, buffer, std::min(DEFAULT_BUFFER_SIZE, static_cast<int>(remaining)));
                 if (len <= 0)
                 {
+                    if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    {
+                        std::this_thread::yield();
+                        continue; // 非阻塞模式下没有数据可读，继续尝试
+                    }
                     throw std::runtime_error("Failed to read body from socket.");
                 }
-                body.insert(body.end(), buffer, buffer + len);
+                _body.insert(_body.end(), buffer, buffer + len);
                 remaining -= len;
             }
         }
-        return body;
+        readBodyFlag = true;
+        return _body;
+    }
+
+    void HttpRequest::resetBody(const std::vector<uint8_t>& body) const
+    {
+        readBodyFlag = true;
+        _body = body;
     }
 
     void HttpRequest::parseFormData() const
@@ -251,6 +237,14 @@ namespace cppkit::http::server
     void HttpRequest::setHeader(const std::string& key, const std::vector<std::string>& values)
     {
         this->headers[key] = values;
+    }
+
+    void HttpRequest::appendBody(const char* data, const size_t len) const
+    {
+        if (len == 0) return;
+        _body.reserve(_body.size() + len);
+        _body.insert(_body.end(), data, data + len);
+        readBodyFlag = true;
     }
 
     void HttpRequest::setParams(std::unordered_map<std::string, std::string> params) const

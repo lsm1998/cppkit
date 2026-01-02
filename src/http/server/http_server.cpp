@@ -1,4 +1,5 @@
 #include "cppkit/http/server/http_server.hpp"
+#include "cppkit/http/server/http_context.hpp"
 #include "cppkit/event/server.hpp"
 #include "cppkit/strings.hpp"
 #include "cppkit/platform.hpp"
@@ -26,13 +27,32 @@ namespace cppkit::http::server
 
         this->_server.setReadable([this](const event::ConnInfo& conn)
         {
-            HttpResponseWriter writer(conn.getFd());
+            const int fd = conn.getFd();
 
-            // 解析HTTP请求
-            HttpRequest request = HttpRequest::parse(conn.getFd());
+            HttpContext& ctx = contexts[fd];
 
-            // 处理请求
-            handleRequest(request, writer, conn.getFd());
+            // 尝试解析
+            if (const ParseStatus status = ctx.parse(fd); status == ParseStatus::HeaderComplete)
+            {
+                HttpResponseWriter writer(fd);
+
+                handleRequest(*ctx.request, writer, fd);
+
+                // 根据连接头决定是否关闭连接
+                if (ctx.request->getHeader("keep-alive") != "true")
+                {
+                    contexts.erase(fd);
+                    return -1; // 关闭连接
+                }
+                ctx = HttpContext();
+            }
+            else if (status == ParseStatus::Error)
+            {
+                // 关闭连接
+                contexts.erase(fd);
+                return -1; // 关闭连接
+            }
+            // 等待更多数据
             return 0;
         });
         this->_server.start();

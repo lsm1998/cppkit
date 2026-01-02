@@ -16,14 +16,14 @@ namespace cppkit::http::server
         std::map<std::string, std::vector<std::string>> headers{};
         mutable std::map<std::string, std::vector<std::string>> formData;
         int _fd{};
-        std::string extraData{};
+        std::vector<u_int8_t> extraData{};
+        mutable bool readBodyFlag{false};
+        mutable std::vector<u_int8_t> _body{};
 
     public:
         explicit HttpRequest(const int fd) : _fd(fd)
         {
         }
-
-        static HttpRequest parse(int fd);
 
         static HttpRequest parse(int fd, const std::string& raw, const std::string& extra_data);
 
@@ -34,6 +34,8 @@ namespace cppkit::http::server
         // 读取请求体
         [[nodiscard]]
         std::vector<u_int8_t> readBody() const;
+
+        void resetBody(const std::vector<uint8_t>& body) const;
 
         // 解析表单数据
         void parseFormData() const;
@@ -81,6 +83,8 @@ namespace cppkit::http::server
         void addHeader(const std::string& key, const std::string& value);
 
         void setHeader(const std::string& key, const std::vector<std::string>& values);
+
+        void appendBody(const char* data, size_t len) const;
 
     private:
         // 设置url param

@@ -3,6 +3,7 @@
 #include "http_request.hpp"
 #include "http_router.hpp"
 #include "http_response.hpp"
+#include "http_context.hpp"
 #include "cppkit/event/server.hpp"
 #include <string>
 #include <functional>
@@ -72,5 +73,6 @@ namespace cppkit::http::server
         std::string _staticPath; // 静态文件URL路径前缀
         std::string _staticDir; // 静态文件目录
         uintmax_t _maxFileSize{50 * 1024 * 1024}; // 50 MB
+        std::unordered_map<int, HttpContext> contexts;
     };
 } // namespace cppkit::http
