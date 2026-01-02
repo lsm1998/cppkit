@@ -2,92 +2,200 @@
 #include <unistd.h>
 #include <sstream>
 #include <thread>
+#include <algorithm>
 
 namespace cppkit::http::server
 {
-  HttpRequest HttpRequest::parse(int fd, const std::string& raw, const std::string& extra_data)
+  // HttpRequest HttpRequest::parse(int fd, const std::string& raw, const std::string& extra_data)
+  // {
+  //   HttpRequest request{fd};
+  //   request.extraData.reserve(extra_data.size());
+  //   request.extraData.insert(request.extraData.end(), extra_data.begin(), extra_data.end());
+  //
+  //   std::istringstream stream(raw);
+  //   std::string line;
+  //
+  //   // 解析请求行
+  //   if (std::getline(stream, line) && !line.empty())
+  //   {
+  //     // 移除可能的\r
+  //     if (!line.empty() && line.back() == '\r')
+  //       line.pop_back();
+  //
+  //     std::istringstream req_line(line);
+  //     std::string uri, version;
+  //
+  //     if (std::string method_str; req_line >> method_str >> uri >> version)
+  //     {
+  //       // 转换方法
+  //       if (method_str == "GET")
+  //         request.method = HttpMethod::Get;
+  //       else if (method_str == "POST")
+  //         request.method = HttpMethod::Post;
+  //       else if (method_str == "PUT")
+  //         request.method = HttpMethod::Put;
+  //       else if (method_str == "DELETE")
+  //         request.method = HttpMethod::Delete;
+  //
+  //       request.path = std::move(uri);
+  //     }
+  //   }
+  //
+  //   // 解析查询参数
+  //   if (size_t qPos = request.path.find('?'); qPos != std::string::npos)
+  //   {
+  //     std::string query_string = request.path.substr(qPos + 1);
+  //     request.path = request.path.substr(0, qPos);
+  //     std::istringstream query_stream(query_string);
+  //     std::string pair;
+  //     while (std::getline(query_stream, pair, '&'))
+  //     {
+  //       if (size_t eqpos = pair.find('='); eqpos != std::string::npos)
+  //       {
+  //         std::string key = pair.substr(0, eqpos);
+  //         std::string value = pair.substr(eqpos + 1);
+  //         if (auto& it = request.query[key]; it.empty())
+  //         {
+  //           request.query[key] = {std::move(value)};
+  //         }
+  //         else
+  //         {
+  //           it.push_back(std::move(value));
+  //         }
+  //       }
+  //     }
+  //   }
+  //
+  //   // 解析头部
+  //   while (std::getline(stream, line) && line != "\r" && !line.empty())
+  //   {
+  //     if (!line.empty() && line.back() == '\r')
+  //       line.pop_back();
+  //
+  //     if (auto colon_pos = line.find(':'); colon_pos != std::string::npos)
+  //     {
+  //       std::string key = line.substr(0, colon_pos);
+  //       std::string value = line.substr(colon_pos + 1);
+  //
+  //       // 移除前导空格
+  //       if (size_t value_start = value.find_first_not_of(" \t"); value_start != std::string::npos)
+  //         value = value.substr(value_start);
+  //
+  //       if (auto& it = request.headers[key]; it.empty())
+  //       {
+  //         request.headers[key] = {std::move(value)};
+  //       }
+  //       else
+  //       {
+  //         it.push_back(std::move(value));
+  //       }
+  //     }
+  //   }
+  //   return request;
+  // }
+
+  HttpRequest HttpRequest::parse(const int fd, const std::string& raw, const std::string& extra_data)
   {
     HttpRequest request{fd};
-    request.extraData.reserve(extra_data.size());
-    request.extraData.insert(request.extraData.end(), extra_data.begin(), extra_data.end());
 
-    std::istringstream stream(raw);
-    std::string line;
-
-    // 解析请求行
-    if (std::getline(stream, line) && !line.empty())
+    if (!extra_data.empty())
     {
-      // 移除可能的\r
-      if (!line.empty() && line.back() == '\r')
-        line.pop_back();
-
-      std::istringstream req_line(line);
-      std::string uri, version;
-
-      if (std::string method_str; req_line >> method_str >> uri >> version)
-      {
-        // 转换方法
-        if (method_str == "GET")
-          request.method = HttpMethod::Get;
-        else if (method_str == "POST")
-          request.method = HttpMethod::Post;
-        else if (method_str == "PUT")
-          request.method = HttpMethod::Put;
-        else if (method_str == "DELETE")
-          request.method = HttpMethod::Delete;
-
-        request.path = std::move(uri);
-      }
+      request.extraData.reserve(extra_data.size());
+      request.extraData.assign(extra_data.begin(), extra_data.end());
     }
 
-    // 解析查询参数
-    if (size_t qPos = request.path.find('?'); qPos != std::string::npos)
+    std::string_view raw_view(raw);
+    size_t cursor = 0;
+    size_t length = raw_view.length();
+
+    size_t line_end = raw_view.find("\r\n", cursor);
+    if (line_end == std::string_view::npos)
+      return request; // 格式错误或不完整
+
+    std::string_view request_line = raw_view.substr(cursor, line_end - cursor);
+    cursor = line_end + 2; // 跳过 \r\n
+
+    size_t method_end = request_line.find(' ');
+    if (method_end != std::string_view::npos)
     {
-      std::string query_string = request.path.substr(qPos + 1);
-      request.path = request.path.substr(0, qPos);
-      std::istringstream query_stream(query_string);
-      std::string pair;
-      while (std::getline(query_stream, pair, '&'))
+      std::string_view method_str = request_line.substr(0, method_end);
+
+      if (method_str == "GET")
+        request.method = HttpMethod::Get;
+      else if (method_str == "POST")
+        request.method = HttpMethod::Post;
+      else if (method_str == "PUT")
+        request.method = HttpMethod::Put;
+      else if (method_str == "DELETE")
+        request.method = HttpMethod::Delete;
+
+      size_t uri_start = method_end + 1;
+      size_t uri_end = request_line.find(' ', uri_start);
+      if (uri_end != std::string_view::npos)
       {
-        if (size_t eqpos = pair.find('='); eqpos != std::string::npos)
+        std::string_view uri = request_line.substr(uri_start, uri_end - uri_start);
+
+        size_t q_pos = uri.find('?');
+        if (q_pos != std::string_view::npos)
         {
-          std::string key = pair.substr(0, eqpos);
-          std::string value = pair.substr(eqpos + 1);
-          if (auto& it = request.query[key]; it.empty())
+          // path
+          request.path = std::string(uri.substr(0, q_pos));
+
+          // query
+          std::string_view query_str = uri.substr(q_pos + 1);
+          size_t q_cursor = 0;
+          while (q_cursor < query_str.length())
           {
-            request.query[key] = {std::move(value)};
+            size_t amp_pos = query_str.find('&', q_cursor);
+            std::string_view pair = query_str.substr(q_cursor, amp_pos - q_cursor);
+
+            if (amp_pos != std::string_view::npos)
+              q_cursor = amp_pos + 1;
+            else
+              q_cursor = query_str.length();
+
+            size_t eq_pos = pair.find('=');
+            if (eq_pos != std::string_view::npos)
+            {
+              std::string key(pair.substr(0, eq_pos));
+              std::string value(pair.substr(eq_pos + 1));
+              request.query[std::move(key)].push_back(std::move(value));
+            }
           }
-          else
-          {
-            it.push_back(std::move(value));
-          }
-        }
-      }
-    }
-
-    // 解析头部
-    while (std::getline(stream, line) && line != "\r" && !line.empty())
-    {
-      if (!line.empty() && line.back() == '\r')
-        line.pop_back();
-
-      if (auto colon_pos = line.find(':'); colon_pos != std::string::npos)
-      {
-        std::string key = line.substr(0, colon_pos);
-        std::string value = line.substr(colon_pos + 1);
-
-        // 移除前导空格
-        if (size_t value_start = value.find_first_not_of(" \t"); value_start != std::string::npos)
-          value = value.substr(value_start);
-
-        if (auto& it = request.headers[key]; it.empty())
-        {
-          request.headers[key] = {std::move(value)};
         }
         else
         {
-          it.push_back(std::move(value));
+          request.path = std::string(uri);
         }
+      }
+    }
+
+    while (cursor < length)
+    {
+      size_t next_line_end = raw_view.find("\r\n", cursor);
+      if (next_line_end == std::string_view::npos)
+        break;
+
+      // 空行 (\r\n\r\n) 表示 Header 结束，Body 开始
+      if (next_line_end == cursor)
+      {
+        cursor += 2; // 跳过最后的空行
+        break;
+      }
+
+      std::string_view header_line = raw_view.substr(cursor, next_line_end - cursor);
+      cursor = next_line_end + 2;
+
+      if (const size_t colon_pos = header_line.find(':'); colon_pos != std::string_view::npos)
+      {
+        std::string key(header_line.substr(0, colon_pos));
+        std::string_view value_view = header_line.substr(colon_pos + 1);
+        while (!value_view.empty() && (value_view.front() == ' ' || value_view.front() == '\t'))
+        {
+          value_view.remove_prefix(1);
+        }
+
+        request.headers[std::move(key)].emplace_back(value_view);
       }
     }
     return request;
@@ -108,7 +216,7 @@ namespace cppkit::http::server
     size_t contentLength = 0;
     try
     {
-      if (const std::string lenStr = getHeader("content-length"); !lenStr.empty())
+      if (const std::string lenStr = getHeader("Content-Length"); !lenStr.empty())
       {
         contentLength = std::stoul(lenStr);
       }
