@@ -301,7 +301,7 @@ namespace cppkit::http::server
       const size_t availableInExtra = extraData.size() - offset;
       const size_t toCopy = std::min(currentMaxLen, availableInExtra);
 
-      std::memcpy(currentBufPtr, extraData.data() + offset, toCopy);
+      std::copy_n(extraData.data() + static_cast<long>(offset), toCopy, currentBufPtr);
 
       totalBytesCopied += toCopy;
       currentBufPtr += toCopy;
