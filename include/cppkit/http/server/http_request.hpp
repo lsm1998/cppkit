@@ -35,6 +35,8 @@ namespace cppkit::http::server
         [[nodiscard]]
         std::vector<u_int8_t> readBody() const;
 
+        size_t readBody(char* buffer, size_t maxLen, size_t offset = 0) const;
+
         void resetBody(const std::vector<uint8_t>& body) const;
 
         // 解析表单数据

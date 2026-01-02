@@ -16,6 +16,9 @@ namespace cppkit
     // 默认缓冲区大小
     constexpr int DEFAULT_BUFFER_SIZE = 4096;
 
+    // 最大请求体大小
+    constexpr int MAX_BODY_SIZE = 1024 * 1024 * 1024; // 1GB
+
     namespace http
     {
         class HttpClient;
