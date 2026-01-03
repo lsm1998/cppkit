@@ -21,9 +21,9 @@ namespace cppkit::http::server
 
         std::string_view raw_view(raw);
         size_t cursor = 0;
-        size_t length = raw_view.length();
+        const size_t length = raw_view.length();
 
-        size_t line_end = raw_view.find("\r\n", cursor);
+        const size_t line_end = raw_view.find("\r\n", cursor);
         if (line_end == std::string_view::npos)
             return request; // 格式错误或不完整
 
@@ -74,7 +74,8 @@ namespace cppkit::http::server
                         {
                             std::string key(pair.substr(0, eq_pos));
                             std::string value(pair.substr(eq_pos + 1));
-                            request.query[std::move(key)].push_back(std::move(value));
+                            // url解码
+                            request.query[std::move(urlDecode(key))].push_back(std::move(urlDecode(value)));
                         }
                     }
                 }

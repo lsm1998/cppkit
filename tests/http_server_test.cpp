@@ -25,7 +25,8 @@ int main()
     server.addMiddleware("/hello",
                          [](HttpRequest& req, HttpResponseWriter& res, const NextFunc& next)
                          {
-                             if (req.getQuery("name").empty())
+                             auto name = req.getQuery("name");
+                             if (name.empty())
                              {
                                  res.setStatusCode(cppkit::http::HTTP_BAD_REQUEST);
                                  res.setHeader("Content-Type", "text/plain");
@@ -33,7 +34,8 @@ int main()
                              }
                              else
                              {
-                                 req.setQuery("name", "ttl");
+                                 name += " from middleware";
+                                 req.setQuery("name", name);
                                  next();
                              }
                          });
@@ -44,9 +46,10 @@ int main()
     server.Get("/hello",
                [](const HttpRequest& req, HttpResponseWriter& res)
                {
+                   const auto name = req.getQuery("name");
                    res.setStatusCode(cppkit::http::HTTP_OK);
                    res.setContentType("text/plain");
-                   res.write("Hello, World!");
+                   res.write("Hello, World!" + name);
                });
 
     // GET /hello/:name
