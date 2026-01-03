@@ -322,7 +322,46 @@ namespace cppkit::json
         }
         else if constexpr (std::is_convertible_v<Type, std::string_view>) // 字符串类型
         {
-            return "\"" + std::string(obj) + "\"";
+            std::ostringstream oss;
+            oss << '"';
+            for (unsigned char c : std::string(obj))
+            {
+                switch (c)
+                {
+                case '"':
+                    oss << "\\\"";
+                    break;
+                case '\\':
+                    oss << "\\\\";
+                    break;
+                case '\b':
+                    oss << "\\b";
+                    break;
+                case '\f':
+                    oss << "\\f";
+                    break;
+                case '\n':
+                    oss << "\\n";
+                    break;
+                case '\r':
+                    oss << "\\r";
+                    break;
+                case '\t':
+                    oss << "\\t";
+                    break;
+                default:
+                    if (c < 0x20)
+                    {
+                        oss << "\\u" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << (int)c <<
+                            std::dec
+                            << std::nouppercase;
+                    }
+                    else
+                        oss << c;
+                }
+            }
+            oss << '"';
+            return oss.str();
         }
         else if constexpr (internal::is_sequence_container_v<Type> || internal::is_set_container_v<Type>) // 顺序或者set容器
         {
@@ -348,16 +387,53 @@ namespace cppkit::json
                 first = false;
 
                 // Key 必须转为 string
-                s += "\"";
+                std::ostringstream key_oss;
+                key_oss << '"';
                 if constexpr (std::is_arithmetic_v<std::decay_t<decltype(key)>>)
                 {
-                    s += std::to_string(key);
+                    key_oss << std::to_string(key);
                 }
                 else
                 {
-                    s += key;
+                    for (unsigned char c : std::string(key))
+                    {
+                        switch (c)
+                        {
+                        case '"':
+                            key_oss << "\\\"";
+                            break;
+                        case '\\':
+                            key_oss << "\\\\";
+                            break;
+                        case '\b':
+                            key_oss << "\\b";
+                            break;
+                        case '\f':
+                            key_oss << "\\f";
+                            break;
+                        case '\n':
+                            key_oss << "\\n";
+                            break;
+                        case '\r':
+                            key_oss << "\\r";
+                            break;
+                        case '\t':
+                            key_oss << "\\t";
+                            break;
+                        default:
+                            if (c < 0x20)
+                            {
+                                key_oss << "\\u" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << (int)c <<
+                                    std::dec
+                                    << std::nouppercase;
+                            }
+                            else
+                                key_oss << c;
+                        }
+                    }
                 }
-                s += "\":";
+                key_oss << '"' << ':';
+                s += key_oss.str();
                 s += stringify(value);
             }
             s += "}";

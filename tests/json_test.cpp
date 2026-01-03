@@ -70,8 +70,16 @@ int main(int argc, char* argv[])
     // 万能序列化函数
     std::cout << stringify(u) << std::endl;
 
+    // 构建复杂字符串，带有换行等特殊字符
+    u.name = "lsm\n\"1998\"\t\\/";
+
+    // 先序列化然后打印
+    std::string json_str = stringify(u);
+    std::cout << "Serialized JSON: " << json_str << std::endl;
+    std::cout << "JSON length: " << json_str.length() << std::endl;
+
     // 万能反序列化函数
-    auto t = cppkit::json::fromJson<User>(stringify(u));
+    auto t = cppkit::json::fromJson<User>(json_str);
 
     std::cout << t.name << std::endl;
     return 0;
