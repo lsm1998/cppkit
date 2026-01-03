@@ -52,7 +52,21 @@ int main(int argc, char* argv[])
     obj["name"] = Json("bob");
     obj["is_active"] = Json(true);
 
-    std::vector<User> users;
+    std::vector<User> users{
+        {
+            1,
+            "lsm1998",
+            {99.5, 88.0},
+            {"mast", 10001},
+            {{"Beijing", 100086}, {"Tokyo", 100000}},
+            {"Java", "Golang"},
+            {
+                {
+                    "Beijing", 1765609508
+                }
+            }
+        }
+    };
 
     obj["list"] = users;
     obj["map"] = std::map<std::string, int>{{"one", 1}, {"two", 2}};

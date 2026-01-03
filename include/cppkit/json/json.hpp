@@ -216,6 +216,114 @@ namespace cppkit::json
             return std::get<array>(v).at(idx);
         }
 
+        template <typename T, typename = std::enable_if_t<!std::is_same_v<std::decay_t<T>, Json>>>
+        explicit Json(const T& obj)
+        {
+            using DecayT = std::decay_t<T>;
+            if constexpr (std::is_arithmetic_v<DecayT>)
+            {
+                if constexpr (std::is_same_v<DecayT, bool>)
+                {
+                    v = static_cast<bool>(obj);
+                }
+                else
+                {
+                    v = static_cast<double>(obj);
+                }
+            }
+            else if constexpr (std::is_convertible_v<T, std::string_view>)
+            {
+                v = std::string(obj);
+            }
+            else if constexpr (internal::is_sequence_container_v<T>)
+            {
+                array arr;
+                arr.reserve(obj.size());
+                for (const auto& item : obj)
+                {
+                    arr.emplace_back(item);
+                }
+                v = std::move(arr);
+            }
+            else if constexpr (internal::is_map_container_v<T>)
+            {
+                object objJson;
+                for (const auto& [key, value] : obj)
+                {
+                    objJson.emplace(key, Json(value));
+                }
+                v = std::move(objJson);
+            }
+            else if constexpr (internal::is_reflectable_v<DecayT>)
+            {
+                object objJson;
+                reflection::forEachField(obj, [&](const std::string_view name, const auto& value)
+                {
+                    objJson.emplace(name, Json(value));
+                });
+                v = std::move(objJson);
+            }
+            else
+            {
+                static_assert(internal::is_reflectable_v<T>,
+                              "Type is not reflectable. Please register it using REFLECT macro.");
+            }
+        }
+
+        template <typename T, typename = std::enable_if_t<!std::is_same_v<std::decay_t<T>, Json>>>
+        explicit Json(T&& obj) noexcept(std::is_nothrow_move_constructible_v<T>)
+        {
+            using DecayT = std::decay_t<T>;
+            if constexpr (std::is_arithmetic_v<DecayT>)
+            {
+                if constexpr (std::is_same_v<DecayT, bool>)
+                {
+                    v = static_cast<bool>(obj);
+                }
+                else
+                {
+                    v = static_cast<double>(obj);
+                }
+            }
+            else if constexpr (std::is_convertible_v<T, std::string_view>)
+            {
+                v = std::string(std::forward<T>(obj));
+            }
+            else if constexpr (internal::is_sequence_container_v<T>)
+            {
+                array arr;
+                arr.reserve(obj.size());
+                for (auto& item : obj)
+                {
+                    arr.emplace_back(std::move(item));
+                }
+                v = std::move(arr);
+            }
+            else if constexpr (internal::is_map_container_v<T>)
+            {
+                object objJson;
+                for (auto&& [key, value] : obj)
+                {
+                    objJson.emplace(std::move(key), Json(std::move(value)));
+                }
+                v = std::move(objJson);
+            }
+            else if constexpr (internal::is_reflectable_v<DecayT>)
+            {
+                object objJson;
+                reflection::forEachField(std::forward<T>(obj), [&]<typename T0>(const std::string_view name, T0&& value)
+                {
+                    objJson.emplace(name, Json(std::forward<T0>(value)));
+                });
+                v = std::move(objJson);
+            }
+            else
+            {
+                static_assert(internal::is_reflectable_v<T>,
+                              "Type is not reflectable. Please register it using REFLECT macro.");
+            }
+        }
+
         // Assignment operators
         Json& operator=(std::nullptr_t) noexcept
         {
@@ -292,7 +400,8 @@ namespace cppkit::json
         template <typename T>
         Json& operator=(const T obj)
         {
-            if constexpr (std::is_arithmetic_v<T>)
+            using DecayT = std::decay_t<T>;
+            if constexpr (std::is_arithmetic_v<DecayT>)
             {
                 if constexpr (std::is_same_v<T, bool>)
                 {
@@ -326,10 +435,10 @@ namespace cppkit::json
                 }
                 v = std::move(objJson);
             }
-            else if constexpr (internal::is_reflectable_v<T>)
+            else if constexpr (internal::is_reflectable_v<DecayT>)
             {
                 object objJson;
-                reflection::forEachField<T>(obj, [&](const char* name, const auto& value)
+                reflection::forEachField(obj, [&](const std::string_view name, const auto& value)
                 {
                     objJson.emplace(name, Json(value));
                 });
