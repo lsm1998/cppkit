@@ -101,5 +101,10 @@ int main(int argc, char* argv[])
     auto t = cppkit::json::fromJson<User>(json_str);
 
     std::cout << t.name << std::endl;
+
+    auto j = Json();
+    j["name"] = "hello";
+    j["age"] = 30;
+    std::cout << stringify(j) << std::endl;
     return 0;
 }

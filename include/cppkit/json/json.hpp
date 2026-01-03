@@ -472,7 +472,11 @@ namespace cppkit::json
     {
         using Type = std::decay_t<T>;
 
-        if constexpr (std::is_arithmetic_v<Type>) // 算术类型
+        if constexpr (std::is_same_v<Type, Json>) // Json类型
+        {
+            return obj.dump();
+        }
+        else if constexpr (std::is_arithmetic_v<Type>) // 算术类型
         {
             if constexpr (std::is_same_v<Type, bool>)
             {
