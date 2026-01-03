@@ -36,8 +36,18 @@ REFLECT(User,
         FIELD(loginLog)
 )
 
+void unmanagedJsonExample()
+{
+    const auto jsonStr = R"({})";
+
+    const auto user = cppkit::json::fromJson<User>(jsonStr);
+    std::cout << "Name: " << user.name << std::endl;
+}
+
 int main(int argc, char* argv[])
 {
+    unmanagedJsonExample();
+
     const auto jsonStr = R"({"name":"lsm1998","age":50,"subscribes":["YouTube","qq music",100]})";
 
     if (auto json = Json::parse(jsonStr); json["name"].isString())

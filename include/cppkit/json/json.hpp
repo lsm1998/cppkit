@@ -216,7 +216,10 @@ namespace cppkit::json
             return std::get<array>(v).at(idx);
         }
 
-        template <typename T, typename = std::enable_if_t<!std::is_same_v<std::decay_t<T>, Json>>>
+        template <typename T, typename = std::enable_if_t<
+                                  !std::is_same_v<std::decay_t<T>, Json> &&
+                                  !std::is_same_v<std::decay_t<T>, array> &&
+                                  !std::is_same_v<std::decay_t<T>, object>>>
         explicit Json(const T& obj)
         {
             using DecayT = std::decay_t<T>;
@@ -270,7 +273,10 @@ namespace cppkit::json
             }
         }
 
-        template <typename T, typename = std::enable_if_t<!std::is_same_v<std::decay_t<T>, Json>>>
+        template <typename T, typename = std::enable_if_t<
+                                  !std::is_same_v<std::decay_t<T>, Json> &&
+                                  !std::is_same_v<std::decay_t<T>, array> &&
+                                  !std::is_same_v<std::decay_t<T>, object>>>
         explicit Json(T&& obj) noexcept(std::is_nothrow_move_constructible_v<T>)
         {
             using DecayT = std::decay_t<T>;
