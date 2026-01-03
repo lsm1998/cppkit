@@ -214,6 +214,44 @@ namespace cppkit::json
             return *this;
         }
 
+        template <typename T>
+        Json& operator=(const std::vector<T>& vec)
+        {
+            array arr;
+            arr.reserve(vec.size());
+            for (const auto& item : vec)
+            {
+                arr.emplace_back(item);
+            }
+            v = std::move(arr);
+            return *this;
+        }
+
+        template <typename T>
+        Json& operator=(const std::list<T>& vec)
+        {
+            array arr;
+            arr.reserve(vec.size());
+            for (const auto& item : vec)
+            {
+                arr.emplace_back(item);
+            }
+            v = std::move(arr);
+            return *this;
+        }
+
+        template <typename T>
+        Json& operator=(const std::map<std::string, T>& map)
+        {
+            object obj;
+            for (const auto& [key, value] : map)
+            {
+                obj.emplace(key, value);
+            }
+            v = std::move(obj);
+            return *this;
+        }
+
         // Serialization
         [[nodiscard]]
         std::string dump(bool pretty = false, int indent_size = 2) const;
@@ -423,7 +461,8 @@ namespace cppkit::json
                         default:
                             if (c < 0x20)
                             {
-                                key_oss << "\\u" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << (int)c <<
+                                key_oss << "\\u" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << (
+                                        int)c <<
                                     std::dec
                                     << std::nouppercase;
                             }
