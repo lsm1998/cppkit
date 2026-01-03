@@ -17,6 +17,81 @@
 
 namespace cppkit::json
 {
+    namespace internal
+    {
+        template <typename T>
+        struct is_set_container : std::false_type
+        {
+        };
+
+        template <typename T, typename A>
+        struct is_set_container<std::unordered_set<T, A>> : std::true_type
+        {
+        };
+
+        template <typename T, typename A>
+        struct is_set_container<std::set<T, A>> : std::true_type
+        {
+        };
+
+        template <typename T>
+        constexpr bool is_set_container_v = is_set_container<T>::value;
+
+        template <typename T>
+        struct is_map_container : std::false_type
+        {
+        };
+
+        template <typename T, typename A>
+        struct is_map_container<std::unordered_map<T, A>> : std::true_type
+        {
+        };
+
+        template <typename T, typename A>
+        struct is_map_container<std::map<T, A>> : std::true_type
+        {
+        };
+
+        template <typename T>
+        constexpr bool is_map_container_v = is_map_container<T>::value;
+
+        template <typename T>
+        struct is_sequence_container : std::false_type
+        {
+        };
+
+        template <typename T, typename A>
+        struct is_sequence_container<std::vector<T, A>> : std::true_type
+        {
+        };
+
+        template <typename T, typename A>
+        struct is_sequence_container<std::list<T, A>> : std::true_type
+        {
+        };
+
+        template <typename T, typename A>
+        struct is_sequence_container<std::deque<T, A>> : std::true_type
+        {
+        };
+
+        template <typename T>
+        constexpr bool is_sequence_container_v = is_sequence_container<T>::value;
+
+        template <typename T, typename = void>
+        struct is_reflectable : std::false_type
+        {
+        };
+
+        template <typename T>
+        struct is_reflectable<T, std::void_t<decltype(reflection::MetaData<T>::info())>> : std::true_type
+        {
+        };
+
+        template <typename T>
+        constexpr bool is_reflectable_v = is_reflectable<T>::value;
+    }
+
     class Json
     {
     public:
@@ -215,40 +290,56 @@ namespace cppkit::json
         }
 
         template <typename T>
-        Json& operator=(const std::vector<T>& vec)
+        Json& operator=(const T obj)
         {
-            array arr;
-            arr.reserve(vec.size());
-            for (const auto& item : vec)
+            if constexpr (std::is_arithmetic_v<T>)
             {
-                arr.emplace_back(item);
+                if constexpr (std::is_same_v<T, bool>)
+                {
+                    v = static_cast<bool>(obj);
+                }
+                else
+                {
+                    v = static_cast<double>(obj);
+                }
             }
-            v = std::move(arr);
-            return *this;
-        }
-
-        template <typename T>
-        Json& operator=(const std::list<T>& vec)
-        {
-            array arr;
-            arr.reserve(vec.size());
-            for (const auto& item : vec)
+            else if constexpr (std::is_convertible_v<T, std::string_view>)
             {
-                arr.emplace_back(item);
+                v = std::string(obj);
             }
-            v = std::move(arr);
-            return *this;
-        }
-
-        template <typename T>
-        Json& operator=(const std::map<std::string, T>& map)
-        {
-            object obj;
-            for (const auto& [key, value] : map)
+            else if constexpr (internal::is_sequence_container_v<T>)
             {
-                obj.emplace(key, value);
+                array arr;
+                arr.reserve(obj.size());
+                for (const auto& item : obj)
+                {
+                    arr.emplace_back(item);
+                }
+                v = std::move(arr);
             }
-            v = std::move(obj);
+            else if constexpr (internal::is_map_container_v<T>)
+            {
+                object objJson;
+                for (const auto& [key, value] : obj)
+                {
+                    objJson.emplace(key, Json(value));
+                }
+                v = std::move(objJson);
+            }
+            else if constexpr (internal::is_reflectable_v<T>)
+            {
+                object objJson;
+                reflection::forEachField<T>(obj, [&](const char* name, const auto& value)
+                {
+                    objJson.emplace(name, Json(value));
+                });
+                v = std::move(objJson);
+            }
+            else
+            {
+                static_assert(internal::is_reflectable_v<T>,
+                              "Type is not reflectable. Please register it using REFLECT macro.");
+            }
             return *this;
         }
 
@@ -266,81 +357,6 @@ namespace cppkit::json
     public:
         static Json parse(const std::string& s);
     };
-
-    namespace internal
-    {
-        template <typename T>
-        struct is_set_container : std::false_type
-        {
-        };
-
-        template <typename T, typename A>
-        struct is_set_container<std::unordered_set<T, A>> : std::true_type
-        {
-        };
-
-        template <typename T, typename A>
-        struct is_set_container<std::set<T, A>> : std::true_type
-        {
-        };
-
-        template <typename T>
-        constexpr bool is_set_container_v = is_set_container<T>::value;
-
-        template <typename T>
-        struct is_map_container : std::false_type
-        {
-        };
-
-        template <typename T, typename A>
-        struct is_map_container<std::unordered_map<T, A>> : std::true_type
-        {
-        };
-
-        template <typename T, typename A>
-        struct is_map_container<std::map<T, A>> : std::true_type
-        {
-        };
-
-        template <typename T>
-        constexpr bool is_map_container_v = is_map_container<T>::value;
-
-        template <typename T>
-        struct is_sequence_container : std::false_type
-        {
-        };
-
-        template <typename T, typename A>
-        struct is_sequence_container<std::vector<T, A>> : std::true_type
-        {
-        };
-
-        template <typename T, typename A>
-        struct is_sequence_container<std::list<T, A>> : std::true_type
-        {
-        };
-
-        template <typename T, typename A>
-        struct is_sequence_container<std::deque<T, A>> : std::true_type
-        {
-        };
-
-        template <typename T>
-        constexpr bool is_sequence_container_v = is_sequence_container<T>::value;
-
-        template <typename T, typename = void>
-        struct is_reflectable : std::false_type
-        {
-        };
-
-        template <typename T>
-        struct is_reflectable<T, std::void_t<decltype(reflection::MetaData<T>::info())>> : std::true_type
-        {
-        };
-
-        template <typename T>
-        constexpr bool is_reflectable_v = is_reflectable<T>::value;
-    }
 
     template <typename T>
     std::string stringify(const T& obj)
