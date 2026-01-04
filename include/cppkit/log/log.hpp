@@ -12,11 +12,11 @@
 #include <sstream>
 #include <filesystem>
 #include <algorithm>
-#include <queue>
 #include <thread>
 #include <condition_variable>
 #include <source_location>
 #include <atomic>
+#include "cppkit/concurrency/ring_buffer.hpp"
 #if defined(__cpp_lib_format)
 #include <format>
 #else
@@ -139,7 +139,7 @@ namespace cppkit::log
             // 只在将日志写入队列时持有锁，减少锁持有时间
             {
                 std::unique_lock lk(queue_mtx_);
-                log_queue_.emplace(logLine);
+                log_queue_.push(logLine);
 
                 // 如果是异步模式，通知后台线程
                 if (is_async_)
@@ -250,7 +250,7 @@ namespace cppkit::log
         std::atomic<bool> stop_; // 线程停止标志
         mutable std::mutex queue_mtx_; // 队列互斥锁
         std::condition_variable queue_cv_; // 队列条件变量
-        std::queue<std::string> log_queue_; // 日志队列
+        concurrency::RingBuffer<std::string, 4096> log_queue_; // 日志队列 (4096容量)
         std::thread bg_thread_; // 后台处理线程
     };
 

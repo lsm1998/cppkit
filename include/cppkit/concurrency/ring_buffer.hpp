@@ -71,7 +71,7 @@ namespace cppkit::concurrency
             {
                 Cell* cell = &_buffer[pos & _mask];
                 const size_t seq = cell->sequence.load(std::memory_order_acquire);
-                intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos);
+                const intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos);
 
                 if (diff == 0)
                 {
@@ -102,7 +102,7 @@ namespace cppkit::concurrency
                 Cell* cell = &_buffer[pos & _mask];
                 const size_t seq = cell->sequence.load(std::memory_order_acquire);
 
-                intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos + 1);
+                const intptr_t diff = static_cast<intptr_t>(seq) - static_cast<intptr_t>(pos + 1);
 
                 // diff == 0 表示序列号是 pos + 1，即数据已写入完毕
                 if (diff == 0)
@@ -138,16 +138,16 @@ namespace cppkit::concurrency
             return std::nullopt;
         }
 
-        int size() const
+        size_t size() const
         {
             const size_t deq = _dequeue_pos.load(std::memory_order_acquire);
             const size_t enq = _enqueue_pos.load(std::memory_order_acquire);
-            return static_cast<int>(enq - deq);
+            return enq - deq;
         }
 
-        int capacity() const
+        static consteval size_t capacity()
         {
-            return static_cast<int>(Capacity);
+            return Capacity;
         }
 
     private:
@@ -156,7 +156,7 @@ namespace cppkit::concurrency
             // 序列号，用于协调读写
             std::atomic<size_t> sequence;
             // 原始内存存储数据
-            alignas(T) unsigned char data[sizeof(T)];
+            alignas(T) unsigned char data[sizeof(T)]{};
         };
 
         static constexpr size_t _mask = Capacity - 1;

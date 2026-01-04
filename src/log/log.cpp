@@ -153,13 +153,19 @@ namespace cppkit::log
             if (const_cast<Logger*>(this)->is_async_)
             {
                 std::queue<std::string> temp_queue;
-                std::swap(const_cast<Logger*>(this)->log_queue_, temp_queue);
+                std::string log_line;
+
+                // 将RingBuffer中的所有日志弹出到temp_queue
+                while (const_cast<Logger*>(this)->log_queue_.pop(log_line))
+                {
+                    temp_queue.push(std::move(log_line));
+                }
 
                 // 解锁队列，处理日志
                 lk.unlock();
 
                 // 持有文件锁处理所有日志
-                std::lock_guard lk2(const_cast<Logger*>(this)->mtx_);
+                std::lock_guard lk2(this->mtx_);
                 while (!temp_queue.empty())
                 {
                     const_cast<Logger*>(this)->processLogLineLocked(temp_queue.front());
@@ -186,17 +192,23 @@ namespace cppkit::log
             // 等待有日志或者停止信号
             queue_cv_.wait(lk, [this]()
             {
-                return stop_ || !log_queue_.empty();
+                return stop_ || log_queue_.size() > 0;
             });
 
-            if (stop_ && log_queue_.empty())
+            if (stop_ && log_queue_.size() == 0)
             {
                 break;
             }
 
             // 将队列中的日志取出
             std::queue<std::string> temp_queue;
-            log_queue_.swap(temp_queue);
+            std::string log_line;
+
+            // 将RingBuffer中的所有日志弹出到temp_queue
+            while (log_queue_.pop(log_line))
+            {
+                temp_queue.push(std::move(log_line));
+            }
 
             // 解锁队列，处理日志
             lk.unlock();
