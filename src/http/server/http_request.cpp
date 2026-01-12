@@ -61,15 +61,22 @@ namespace cppkit::http::server
                     size_t q_cursor = 0;
                     while (q_cursor < query_str.length())
                     {
-                        size_t amp_pos = query_str.find('&', q_cursor);
-                        std::string_view pair = query_str.substr(q_cursor, amp_pos - q_cursor);
+                        const size_t amp_pos = query_str.find('&', q_cursor);
 
+                        // 提取键值对，避免整数下溢
+                        std::string_view pair;
                         if (amp_pos != std::string_view::npos)
+                        {
+                            pair = query_str.substr(q_cursor, amp_pos - q_cursor);
                             q_cursor = amp_pos + 1;
+                        }
                         else
+                        {
+                            pair = query_str.substr(q_cursor);
                             q_cursor = query_str.length();
+                        }
 
-                        size_t eq_pos = pair.find('=');
+                        const size_t eq_pos = pair.find('=');
                         if (eq_pos != std::string_view::npos)
                         {
                             std::string key(pair.substr(0, eq_pos));

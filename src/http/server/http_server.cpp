@@ -52,8 +52,14 @@ namespace cppkit::http::server
 
                 handleRequest(*ctx.request, writer, fd);
 
-                // 根据连接头决定是否关闭连接
-                if (ctx.request->getHeader("keep-alive") != "true")
+                // 根据Connection头决定是否关闭连接
+                // HTTP/1.1 默认保持连接，除非Connection: close
+                // HTTP/1.0 默认关闭连接，除非Connection: keep-alive
+                const std::string connectionHeader = ctx.request->getHeader("Connection");
+                const bool shouldClose = (connectionHeader.find("close") != std::string::npos) ||
+                                        (connectionHeader.empty() && ctx.request->getHeader("keep-alive").empty());
+
+                if (shouldClose)
                 {
                     contexts.erase(fd);
                     return -1; // 关闭连接
@@ -309,87 +315,86 @@ namespace cppkit::http::server
             return 0;
         }
 
-        if constexpr (isApplePlatform)
+#if defined(__APPLE__)
+        // macOS: Use sendfile(int fd, int s, off_t offset, off_t *len, struct sf_hdtr *hdtr, int flags)
+        off_t len = fileSize;
+        if (sendfile(file_fd, fd, 0, &len, nullptr, 0) == -1)
         {
-            off_t len = fileSize;
-            if (sendfile(file_fd, fd, 0, &len, nullptr, 0) == -1)
-            {
-                std::cerr << "sendfile failed on macOS: " << strerror(errno) << std::endl;
-                close(file_fd);
-                return 0;
-            }
-            totalBytesSent = static_cast<size_t>(len);
+            std::cerr << "sendfile failed on macOS: " << strerror(errno) << std::endl;
+            close(file_fd);
+            return 0;
         }
-        else if constexpr (isLinuxPlatform)
+        totalBytesSent = static_cast<size_t>(len);
+
+#elif defined(__linux__)
+        // Linux: Use sendfile(int out_fd, int in_fd, off_t *offset, size_t count)
+        off_t offset = 0;
+        size_t remaining = fileSize;
+
+        while (remaining > 0)
         {
-            off_t offset = 0;
-            size_t remaining = fileSize;
+            const size_t chunkSize = std::min(remaining, static_cast<size_t>(1ULL << 30));
+            ssize_t sent = ::sendfile(fd, file_fd, &offset, chunkSize);
 
-            while (remaining > 0)
+            if (sent <= 0)
             {
-                const size_t chunkSize = std::min(remaining, static_cast<size_t>(1ULL << 30));
-                ssize_t sent = ::sendfile(fd, file_fd, &offset, chunkSize);
-
-                if (sent <= 0)
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
                 {
-                    if (errno == EAGAIN || errno == EWOULDBLOCK)
-                    {
-                        break;
-                    }
-                    std::cerr << "sendfile failed: " << strerror(errno) << std::endl;
                     break;
                 }
-
-                totalBytesSent += static_cast<size_t>(sent);
-                remaining -= static_cast<size_t>(sent);
+                std::cerr << "sendfile failed: " << strerror(errno) << std::endl;
+                break;
             }
+
+            totalBytesSent += static_cast<size_t>(sent);
+            remaining -= static_cast<size_t>(sent);
         }
-        else
+
+#else
+        // Generic fallback: Use read + write
+        constexpr size_t BUFFER_SIZE = 64 * 1024; // 64KB buffer
+        std::vector<uint8_t> buffer(BUFFER_SIZE);
+        size_t remaining = fileSize;
+
+        while (remaining > 0)
         {
-            // 通用实现：手动读取并写入
-            constexpr size_t BUFFER_SIZE = 64 * 1024; // 64KB buffer
-            std::vector<uint8_t> buffer(BUFFER_SIZE);
-            size_t remaining = fileSize;
+            const size_t toRead = std::min(remaining, BUFFER_SIZE);
+            ssize_t bytesRead = ::read(file_fd, buffer.data(), toRead);
 
-            while (remaining > 0)
+            if (bytesRead <= 0)
             {
-                const size_t toRead = std::min(remaining, BUFFER_SIZE);
-                ssize_t bytesRead = ::read(file_fd, buffer.data(), toRead);
-
-                if (bytesRead <= 0)
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
                 {
-                    if (errno == EAGAIN || errno == EWOULDBLOCK)
-                    {
-                        continue;
-                    }
-                    break;
+                    continue;
                 }
+                break;
+            }
 
-                ssize_t bytesWritten = ::write(fd, buffer.data(), static_cast<size_t>(bytesRead));
-                if (bytesWritten <= 0)
+            ssize_t bytesWritten = ::write(fd, buffer.data(), static_cast<size_t>(bytesRead));
+            if (bytesWritten <= 0)
+            {
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
                 {
-                    if (errno == EAGAIN || errno == EWOULDBLOCK)
-                    {
-                        continue;
-                    }
-                    std::cerr << "write failed: " << strerror(errno) << std::endl;
-                    break;
+                    continue;
                 }
+                std::cerr << "write failed: " << strerror(errno) << std::endl;
+                break;
+            }
 
-                totalBytesSent += static_cast<size_t>(bytesWritten);
+            totalBytesSent += static_cast<size_t>(bytesWritten);
 
-                if (bytesWritten < bytesRead)
-                {
-                    const off_t unwritten = bytesRead - bytesWritten;
-                    lseek(file_fd, -unwritten, SEEK_CUR);
-                    remaining -= static_cast<size_t>(bytesWritten);
-                }
-                else
-                {
-                    remaining -= static_cast<size_t>(bytesRead);
-                }
+            if (bytesWritten < bytesRead)
+            {
+                const off_t unwritten = bytesRead - bytesWritten;
+                lseek(file_fd, -unwritten, SEEK_CUR);
+                remaining -= static_cast<size_t>(bytesWritten);
+            }
+            else
+            {
+                remaining -= static_cast<size_t>(bytesRead);
             }
         }
+#endif
 
         close(file_fd);
         return totalBytesSent;
