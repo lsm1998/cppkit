@@ -5,6 +5,8 @@
 #include "cppkit/crypto/sha1.hpp"
 #include <algorithm>
 #include <sstream>
+#include <stdexcept>
+#include <cerrno>
 
 namespace cppkit::websocket
 {
@@ -87,6 +89,9 @@ namespace cppkit::websocket
 
     void WebSocketServer::onTcpMessage(const event::ConnInfo& connInfo, const std::vector<uint8_t>& data)
     {
+        // 最大缓冲区大小限制 (防止内存耗尽攻击)
+        constexpr size_t MAX_BUFFER_SIZE = 16 * 1024 * 1024; // 16 MB
+
         const std::string clientId = connInfo.getClientId();
         const auto it = _connStates.find(clientId);
 
@@ -97,6 +102,14 @@ namespace cppkit::websocket
 
         if (auto& [state, buffer] = it->second; state == ConnState::HAND_SHAKING)
         {
+            // 检查缓冲区大小
+            if (buffer.size() + data.size() > MAX_BUFFER_SIZE)
+            {
+                std::cerr << "WebSocket handshake buffer too large, closing connection" << std::endl;
+                connInfo.close();
+                return;
+            }
+
             // 收集数据直到找到完整的HTTP请求头
             buffer.insert(buffer.end(), data.begin(), data.end());
 
@@ -125,6 +138,14 @@ namespace cppkit::websocket
         }
         else if (state == ConnState::CONNECTED) // 已连接状态
         {
+            // 检查缓冲区大小
+            if (buffer.size() + data.size() > MAX_BUFFER_SIZE)
+            {
+                std::cerr << "WebSocket message buffer too large, closing connection" << std::endl;
+                connInfo.close();
+                return;
+            }
+
             // 追加数据到缓冲区
             buffer.insert(buffer.end(), data.begin(), data.end());
 
@@ -139,7 +160,7 @@ namespace cppkit::websocket
                 }
 
                 // 尝试解析帧
-                if (const size_t parsedBytes = parseFrame(std::vector(buffer.begin() + parsedOffset, buffer.end()),
+                if (const size_t parsedBytes = parseFrame(std::vector<uint8_t>(buffer.begin() + parsedOffset, buffer.end()),
                                                           frame);
                     parsedBytes > 0)
                 {
@@ -169,7 +190,7 @@ namespace cppkit::websocket
             {
                 if (parsedOffset < buffer.size())
                 {
-                    buffer = std::vector(buffer.begin() + static_cast<long>(parsedOffset), buffer.end());
+                    buffer = std::vector<uint8_t>(buffer.begin() + static_cast<ptrdiff_t>(parsedOffset), buffer.end());
                 }
                 else
                 {
@@ -199,11 +220,18 @@ namespace cppkit::websocket
 
         key = request.substr(keyPos + 19, keyEnd - (keyPos + 19));
 
+        // 验证 WebSocket Key 长度 (应该是 24 字节的 base64 编码)
+        if (key.empty() || key.length() > 100)
+        {
+            std::cerr << "Invalid WebSocket key length" << std::endl;
+            return false;
+        }
+
         // 计算 Sec-WebSocket-Accept
         const std::string magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
         std::string combined = key + magic;
         const auto sha1Binary = crypto::SHA1::shaBinary(combined);
-        std::vector sha1Bytes(sha1Binary.begin(), sha1Binary.end());
+        std::vector<uint8_t> sha1Bytes(sha1Binary.begin(), sha1Binary.end());
         std::string accept = crypto::Base64::encode(sha1Bytes);
 
         // 构建响应

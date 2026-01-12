@@ -5,6 +5,7 @@
 #include <vector>
 #include <random>
 #include <cstring>
+#include <stdexcept>
 
 namespace cppkit::websocket
 {
@@ -123,6 +124,9 @@ namespace cppkit::websocket
 
   inline size_t parseFrame(const std::vector<uint8_t>& data, Frame& frame)
   {
+    // 最大允许的 payload 大小 (16 MB)
+    constexpr uint64_t MAX_PAYLOAD_SIZE = 16 * 1024 * 1024;
+
     if (data.size() < 2)
     {
       return 0;
@@ -168,6 +172,13 @@ namespace cppkit::websocket
       offset += 8;
     }
 
+    // 安全检查：防止内存耗尽攻击
+    if (frame.payloadLength > MAX_PAYLOAD_SIZE)
+    {
+      throw std::runtime_error("WebSocket payload too large: " + std::to_string(frame.payloadLength) +
+                               " bytes (max: " + std::to_string(MAX_PAYLOAD_SIZE) + " bytes)");
+    }
+
     // Parse Masking Key
     if (frame.mask)
     {
@@ -202,6 +213,6 @@ namespace cppkit::websocket
     }
 
     // 返回解析的总字节数：offset + payloadLength
-    return offset + frame.payloadLength;
+    return offset + static_cast<size_t>(frame.payloadLength);
   }
 } // namespace cppkit::websocket
