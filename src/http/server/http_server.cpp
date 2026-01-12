@@ -8,6 +8,20 @@
 #include <fstream>
 #include <filesystem>
 #include <unistd.h>
+#include <fcntl.h>
+#include <cerrno>
+#include <cstring>
+#include <sys/types.h>
+
+// Linux sendfile
+#if defined(__linux__)
+#include <sys/sendfile.h>
+#endif
+
+// macOS sendfile
+#if defined(__APPLE__)
+#include <sys/socket.h>
+#endif
 
 namespace cppkit::http::server
 {
@@ -93,7 +107,7 @@ namespace cppkit::http::server
 
     void HttpServer::setMaxFileSize(const uintmax_t size)
     {
-        if (size <= 0)
+        if (size == 0)
         {
             throw std::invalid_argument("Max file size must be greater than 0");
         }
@@ -286,24 +300,98 @@ namespace cppkit::http::server
     size_t HttpServer::sendFile(const int fd, const std::filesystem::path& filePath, const uintmax_t fileSize)
     {
         size_t totalBytesSent = 0;
+
+        // 打开文件
+        int file_fd = open(filePath.c_str(), O_RDONLY);
+        if (file_fd < 0)
+        {
+            std::cerr << "Failed to open file " << filePath << ": " << strerror(errno) << std::endl;
+            return 0;
+        }
+
         if constexpr (isApplePlatform)
         {
+            off_t len = fileSize;
+            if (sendfile(file_fd, fd, 0, &len, nullptr, 0) == -1)
+            {
+                std::cerr << "sendfile failed on macOS: " << strerror(errno) << std::endl;
+                close(file_fd);
+                return 0;
+            }
+            totalBytesSent = static_cast<size_t>(len);
         }
         else if constexpr (isLinuxPlatform)
         {
+            off_t offset = 0;
+            size_t remaining = fileSize;
+
+            while (remaining > 0)
+            {
+                const size_t chunkSize = std::min(remaining, static_cast<size_t>(1ULL << 30));
+                ssize_t sent = ::sendfile(fd, file_fd, &offset, chunkSize);
+
+                if (sent <= 0)
+                {
+                    if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    {
+                        break;
+                    }
+                    std::cerr << "sendfile failed: " << strerror(errno) << std::endl;
+                    break;
+                }
+
+                totalBytesSent += static_cast<size_t>(sent);
+                remaining -= static_cast<size_t>(sent);
+            }
         }
         else
         {
-            if (std::ifstream file(filePath, std::ios::binary); file.is_open())
+            // 通用实现：手动读取并写入
+            constexpr size_t BUFFER_SIZE = 64 * 1024; // 64KB buffer
+            std::vector<uint8_t> buffer(BUFFER_SIZE);
+            size_t remaining = fileSize;
+
+            while (remaining > 0)
             {
-                //  读取内容
-                std::vector<uint8_t> buffer(fileSize);
-                if (file.read(reinterpret_cast<char*>(buffer.data()), static_cast<long>(fileSize)))
+                const size_t toRead = std::min(remaining, BUFFER_SIZE);
+                ssize_t bytesRead = ::read(file_fd, buffer.data(), toRead);
+
+                if (bytesRead <= 0)
                 {
-                    totalBytesSent += write(fd, buffer.data(), fileSize);
+                    if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    {
+                        continue;
+                    }
+                    break;
+                }
+
+                ssize_t bytesWritten = ::write(fd, buffer.data(), static_cast<size_t>(bytesRead));
+                if (bytesWritten <= 0)
+                {
+                    if (errno == EAGAIN || errno == EWOULDBLOCK)
+                    {
+                        continue;
+                    }
+                    std::cerr << "write failed: " << strerror(errno) << std::endl;
+                    break;
+                }
+
+                totalBytesSent += static_cast<size_t>(bytesWritten);
+
+                if (bytesWritten < bytesRead)
+                {
+                    const off_t unwritten = bytesRead - bytesWritten;
+                    lseek(file_fd, -unwritten, SEEK_CUR);
+                    remaining -= static_cast<size_t>(bytesWritten);
+                }
+                else
+                {
+                    remaining -= static_cast<size_t>(bytesRead);
                 }
             }
         }
+
+        close(file_fd);
         return totalBytesSent;
     }
 } // namespace cppkit::http

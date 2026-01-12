@@ -146,7 +146,7 @@ namespace cppkit::event
                                        }
                                        else
                                        {
-                                           strcpy(ipBuf, "unknown");
+                                           snprintf(ipBuf, sizeof(ipBuf), "unknown");
                                        }
 
                                        connections_[c] = ConnInfo(
