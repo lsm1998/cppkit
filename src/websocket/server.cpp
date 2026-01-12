@@ -183,7 +183,7 @@ namespace cppkit::websocket
     {
         std::string request(reinterpret_cast<const char*>(data.data()), data.size());
 
-        // Find Sec-WebSocket-Key
+        // 提取 Sec-WebSocket-Key
         std::string key;
         size_t keyPos = request.find("Sec-WebSocket-Key: ");
         if (keyPos == std::string::npos)
@@ -199,14 +199,14 @@ namespace cppkit::websocket
 
         key = request.substr(keyPos + 19, keyEnd - (keyPos + 19));
 
-        // Generate Sec-WebSocket-Accept
+        // 计算 Sec-WebSocket-Accept
         const std::string magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
         std::string combined = key + magic;
         const auto sha1Binary = crypto::SHA1::shaBinary(combined);
         std::vector sha1Bytes(sha1Binary.begin(), sha1Binary.end());
         std::string accept = crypto::Base64::encode(sha1Bytes);
 
-        // Build response
+        // 构建响应
         std::stringstream response;
         response << "HTTP/1.1 101 Switching Protocols\r\n";
         response << "Upgrade: websocket\r\n";
@@ -218,8 +218,4 @@ namespace cppkit::websocket
 
         return sent == static_cast<ssize_t>(respStr.size());
     }
-
-    // void WSServer::onTcpClose(const event::ConnInfo& connInfo)
-    // {
-    // }
 }

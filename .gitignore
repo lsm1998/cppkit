@@ -2,6 +2,10 @@ build/
 
 cmake-build-*/
 
-.*
+.cache
+
+.claude
+
+.idea
 
 *DS_Store

@@ -278,7 +278,7 @@ namespace cppkit::http::server
             writer.setStatusCode(HTTP_INTERNAL_SERVER_ERROR);
             writer.write("500 Internal Server Error");
             std::cerr << "Error serving static file for request: " << request.getPath() << std::endl;
-            return false;
+            return true;
         }
         return false;
     }
