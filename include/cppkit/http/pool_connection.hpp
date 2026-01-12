@@ -9,13 +9,17 @@ namespace cppkit::http
     class PoolConnection
     {
     public:
-        int fd{}; // 文件描述符
+        // 文件描述符
+        int fd{-1};
 
-        std::chrono::steady_clock::time_point lastUsed; // 上次使用时间
+        // 上次使用时间
+        std::chrono::steady_clock::time_point lastUsed;
 
-        std::string host; // 连接的主机地址
+        // 连接的主机地址
+        std::string host;
 
-        int port{}; // 连接的端口号
+        // 连接的端口号
+        int port{};
 
         PoolConnection(const int fd, std::string host, const int port)
             : fd(fd)
