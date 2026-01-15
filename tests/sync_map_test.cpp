@@ -387,25 +387,6 @@ TEST(SyncMapTest, MixedOperations)
     EXPECT_EQ(42, *val);
 }
 
-// Size测试
-TEST(SyncMapTest, Size)
-{
-    SyncMap<std::string, int> map;
-
-    EXPECT_EQ(0, map.Size());
-
-    map.Store("key1", 1);
-    map.Store("key2", 2);
-    map.Store("key3", 3);
-
-    EXPECT_EQ(3, map.Size());
-
-    map.Delete("key1");
-
-    // Size只计算read部分，所以可能还是3
-    EXPECT_TRUE(map.Size() >= 2);
-}
-
 int main()
 {
     std::cout << "========================================" << std::endl;

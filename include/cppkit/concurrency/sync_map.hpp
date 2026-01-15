@@ -334,12 +334,6 @@ namespace cppkit::concurrency
             }
         }
 
-        size_t Size() const
-        {
-            auto r = read.load(std::memory_order_acquire);
-            return r->m->size();
-        }
-
     private:
         void missLocked()
         {
