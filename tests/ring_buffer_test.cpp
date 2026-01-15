@@ -1,5 +1,7 @@
 #include "cppkit/concurrency/ring_buffer.hpp"
 #include <iostream>
+#include <vector>
+#include <thread>
 
 void print_pass(const char* name)
 {

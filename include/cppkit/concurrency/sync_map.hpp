@@ -15,6 +15,7 @@ namespace cppkit::concurrency
     {
         struct Entry;
         using ValuePtr = std::shared_ptr<V>;
+        using MapType = std::unordered_map<K, std::shared_ptr<Entry>>;
 
         static ValuePtr getExpunged()
         {
@@ -24,20 +25,18 @@ namespace cppkit::concurrency
 
         static bool isExpunged(const ValuePtr& p)
         {
-            return p == getExpunged();
+            return p && p == getExpunged();
         }
 
         struct Entry
         {
-            std::shared_ptr<V> p;
+            std::atomic<ValuePtr> p;
 
-            explicit Entry(ValuePtr v) : p(v)
-            {
-            }
+            explicit Entry(ValuePtr v) : p(v) {}
 
             ValuePtr load() const
             {
-                ValuePtr ptr = std::atomic_load(&p);
+                ValuePtr ptr = p.load(std::memory_order_acquire);
                 if (ptr == nullptr || isExpunged(ptr))
                 {
                     return nullptr;
@@ -47,216 +46,282 @@ namespace cppkit::concurrency
 
             bool tryStore(ValuePtr i)
             {
-                // 自旋 CAS
-                ValuePtr expected = std::atomic_load(&p);
+                ValuePtr expected = p.load(std::memory_order_acquire);
                 while (true)
                 {
-                    if (isExpunged(expected))
+                    if (expected == nullptr) // 已被删除，不能直接存储
                     {
                         return false;
                     }
-                    if (std::atomic_compare_exchange_weak(&p, &expected, i))
+                    if (isExpunged(expected)) // 已被驱逐，需要升级到dirty
+                    {
+                        return false;
+                    }
+                    if (p.compare_exchange_weak(expected, i,
+                                                std::memory_order_release,
+                                                std::memory_order_acquire))
                     {
                         return true;
                     }
                 }
             }
 
+            // 尝试原子加载并删除值
+            ValuePtr tryLoadAndDelete()
+            {
+                ValuePtr expected = p.load(std::memory_order_acquire);
+                while (true)
+                {
+                    if (expected == nullptr || isExpunged(expected))
+                    {
+                        return nullptr;
+                    }
+                    if (p.compare_exchange_weak(expected, ValuePtr(nullptr),
+                                                std::memory_order_release,
+                                                std::memory_order_acquire))
+                    {
+                        return expected;
+                    }
+                }
+            }
+
+            // 尝试将expunged状态转换为nullptr
             bool unexpungeLocked()
             {
                 ValuePtr expected = getExpunged();
-                ValuePtr val = nullptr;
-                return std::atomic_compare_exchange_strong(&p, &expected, val);
+                ValuePtr desired = nullptr;
+                return p.compare_exchange_strong(expected, desired,
+                                                 std::memory_order_relaxed,
+                                                 std::memory_order_relaxed);
             }
 
+            // 在持有锁时存储值
             void storeLocked(ValuePtr i)
             {
-                std::atomic_store(&p, i);
+                p.store(i, std::memory_order_release);
             }
 
+            // 尝试将Entry标记为expunged
             bool tryExpungeLocked()
             {
                 ValuePtr expected = nullptr;
-                ValuePtr expunged = getExpunged();
-                while (std::atomic_load(&p) == nullptr)
+                ValuePtr expunged_val = getExpunged();
+
+                // 尝试将nullptr改为expunged
+                if (p.compare_exchange_strong(expected, expunged_val,
+                                             std::memory_order_relaxed,
+                                             std::memory_order_relaxed))
                 {
-                    if (std::atomic_compare_exchange_weak(&p, &expected, expunged))
-                    {
-                        return true;
-                    }
-                    if (expected != nullptr) return false;
+                    return true;  // 成功设置为expunged
+                }
+
+                if (isExpunged(expected))
+                {
+                    return true;  // 已经是expunged
                 }
                 return false;
+            }
+
+            // 检查Entry是否有有效值
+            bool hasValue() const
+            {
+                ValuePtr ptr = p.load(std::memory_order_acquire);
+                return ptr != nullptr && !isExpunged(ptr);
             }
         };
 
         struct ReadOnly
         {
-            std::unordered_map<K, std::shared_ptr<Entry>> m;
-            bool amended = false;
+            std::shared_ptr<MapType> m;
+            bool amended = false;  // 是否有dirty map
         };
 
         std::mutex mu;
 
-        std::shared_ptr<ReadOnly> read;
+        std::atomic<std::shared_ptr<ReadOnly>> read;
 
-        std::unordered_map<K, std::shared_ptr<Entry>> dirty;
+        std::shared_ptr<MapType> dirty;
+
         int misses = 0;
 
     public:
         SyncMap()
         {
-            std::atomic_store(&read, std::make_shared<ReadOnly>());
+            auto initialRead = std::make_shared<ReadOnly>();
+            initialRead->m = std::make_shared<MapType>();
+            initialRead->amended = false;
+            read.store(initialRead, std::memory_order_release);
         }
 
-        // Load
         std::pair<ValuePtr, bool> Load(const K& key)
         {
-            // 原子读取 read
-            auto r = std::atomic_load_explicit(&read, std::memory_order_acquire);
-            auto it = r->m.find(key);
+            auto r = read.load(std::memory_order_acquire);
+            auto it = r->m->find(key);
 
-            if (it == r->m.end() && r->amended)
+            if (it == r->m->end() && r->amended)
             {
+                // read中不存在，但有dirty map，需要检查
                 std::lock_guard lock(mu);
-                r = std::atomic_load_explicit(&read, std::memory_order_relaxed);
-                it = r->m.find(key);
+                // 双重检查：可能另一个线程已经提升dirty
+                r = read.load(std::memory_order_relaxed);
+                it = r->m->find(key);
 
-                if (it == r->m.end() && r->amended)
+                if (it == r->m->end() && r->amended)
                 {
-                    auto dit = dirty.find(key);
-                    if (dit != dirty.end())
+                    if (dirty)
                     {
-                        ValuePtr val = dit->second->load();
-                        missLocked();
-                        return {val, val != nullptr};
+                        auto dit = dirty->find(key);
+                        if (dit != dirty->end())
+                        {
+                            ValuePtr val = dit->second->load();
+                            missLocked();
+                            return {val, val != nullptr};
+                        }
                     }
                     missLocked();
                     return {nullptr, false};
                 }
             }
 
-            if (it != r->m.end())
+            if (it != r->m->end())
             {
-                return {it->second->load(), it->second->load() != nullptr};
+                ValuePtr val = it->second->load();
+                return {val, val != nullptr};
             }
 
             return {nullptr, false};
         }
 
-        // Store
         void Store(const K& key, V value)
         {
             ValuePtr valPtr = std::make_shared<V>(std::move(value));
 
-            auto r = std::atomic_load_explicit(&read, std::memory_order_acquire);
-            auto it = r->m.find(key);
-            if (it != r->m.end())
+            auto r = read.load(std::memory_order_acquire);
+            auto it = r->m->find(key);
+
+            // 先尝试无锁更新
+            if (it != r->m->end() && it->second->tryStore(valPtr))
             {
-                if (it->second->tryStore(valPtr))
-                {
-                    return;
-                }
+                return;
             }
 
+            // 需要加锁的情况：
+            // 1. key不在read中
+            // 2. key在read中但tryStore失败（被删除或驱逐）
             std::lock_guard lock(mu);
+            r = read.load(std::memory_order_relaxed);
+            it = r->m->find(key);
 
-            r = std::atomic_load_explicit(&read, std::memory_order_relaxed);
-            it = r->m.find(key);
-
-            if (it != r->m.end())
+            if (it != r->m->end())
             {
+                // Key 在 read 中
                 if (it->second->unexpungeLocked())
                 {
-                    dirty[key] = it->second;
+                    // 之前是expunged，需要添加到dirty
+                    if (!dirty)
+                    {
+                        dirty = std::make_shared<MapType>();
+                    }
+                    (*dirty)[key] = it->second;
                 }
                 it->second->storeLocked(valPtr);
             }
             else
             {
-                auto dit = dirty.find(key);
-                if (dit != dirty.end())
+                // Key 不在 read 中
+                bool inDirty = dirty && dirty->find(key) != dirty->end();
+
+                if (inDirty)
                 {
-                    dit->second->storeLocked(valPtr);
+                    // 在 dirty 中直接更新
+                    (*dirty)[key]->storeLocked(valPtr);
                 }
                 else
                 {
+                    // 既不在read也不在dirty，需要创建新Entry
                     if (!r->amended)
                     {
-                        dirtyLocked(r); // Pass r to avoid reload
+                        // 首次添加新key，需要创建dirty map
+                        dirtyLocked(r);
                         auto nextRead = std::make_shared<ReadOnly>(*r);
                         nextRead->amended = true;
-                        std::atomic_store_explicit(&read, nextRead, std::memory_order_release);
+                        read.store(nextRead, std::memory_order_release);
                     }
-                    dirty[key] = std::make_shared<Entry>(valPtr);
+
+                    if (!dirty)
+                    {
+                        dirty = std::make_shared<MapType>();
+                    }
+                    (*dirty)[key] = std::make_shared<Entry>(valPtr);
                 }
             }
         }
 
-        // Delete
         void Delete(const K& key)
         {
             LoadAndDelete(key);
         }
 
-        // LoadAndDelete
         std::pair<ValuePtr, bool> LoadAndDelete(const K& key)
         {
-            auto r = std::atomic_load_explicit(&read, std::memory_order_acquire);
-            auto it = r->m.find(key);
+            auto r = read.load(std::memory_order_acquire);
+            auto it = r->m->find(key);
 
-            if (it == r->m.end() && r->amended)
+            if (it == r->m->end() && r->amended)
             {
                 std::lock_guard lock(mu);
-                r = std::atomic_load_explicit(&read, std::memory_order_relaxed);
-                it = r->m.find(key);
+                r = read.load(std::memory_order_relaxed);
+                it = r->m->find(key);
 
-                if (it == r->m.end() && r->amended)
+                if (it == r->m->end() && r->amended)
                 {
-                    auto dit = dirty.find(key);
-                    if (dit != dirty.end())
+                    if (dirty)
                     {
-                        ValuePtr val = dit->second->load();
-                        dit->second->storeLocked(nullptr);
-                        missLocked();
-                        return {val, val != nullptr};
+                        auto dit = dirty->find(key);
+                        if (dit != dirty->end())
+                        {
+                            ValuePtr val = dit->second->tryLoadAndDelete();
+                            missLocked();
+                            return {val, val != nullptr};
+                        }
                     }
                     missLocked();
                     return {nullptr, false};
                 }
             }
 
-            if (it != r->m.end())
+            if (it != r->m->end())
             {
-                ValuePtr old = it->second->load();
-                it->second->storeLocked(nullptr);
+                ValuePtr old = it->second->tryLoadAndDelete();
                 return {old, old != nullptr};
             }
 
             return {nullptr, false};
         }
 
-        // Range
         void Range(std::function<bool(const K&, const V&)> f)
         {
-            auto r = std::atomic_load_explicit(&read, std::memory_order_acquire);
+            auto r = read.load(std::memory_order_acquire);
 
             if (r->amended)
             {
                 std::lock_guard lock(mu);
-                r = std::atomic_load_explicit(&read, std::memory_order_relaxed);
+                r = read.load(std::memory_order_relaxed);
                 if (r->amended)
                 {
+                    // 提升 dirty 为 read
                     auto newRead = std::make_shared<ReadOnly>();
                     newRead->m = dirty;
-                    std::atomic_store_explicit(&read, newRead, std::memory_order_release);
-                    dirty.clear();
+                    newRead->amended = false;
+
+                    read.store(newRead, std::memory_order_release);
+                    dirty = nullptr;
                     misses = 0;
                     r = newRead;
                 }
             }
 
-            for (const auto& [k, e] : r->m)
+            for (const auto& [k, e] : *(r->m))
             {
                 ValuePtr val = e->load();
                 if (val != nullptr)
@@ -269,38 +334,56 @@ namespace cppkit::concurrency
             }
         }
 
+        size_t Size() const
+        {
+            auto r = read.load(std::memory_order_acquire);
+            return r->m->size();
+        }
+
     private:
         void missLocked()
         {
             misses++;
-            if (misses < dirty.size())
+
+            if (!dirty)
             {
                 return;
             }
 
+            if (misses < static_cast<int>(dirty->size()))
+            {
+                return;
+            }
+
+            // Miss次数过多，将dirty提升为read
             auto newRead = std::make_shared<ReadOnly>();
             newRead->m = dirty;
             newRead->amended = false;
 
-            std::atomic_store_explicit(&read, newRead, std::memory_order_release);
+            read.store(newRead, std::memory_order_release);
 
-            dirty.clear();
+            dirty = nullptr;
             misses = 0;
         }
 
         void dirtyLocked(const std::shared_ptr<ReadOnly>& r)
         {
-            if (!dirty.empty())
+            if (dirty)
             {
                 return;
             }
 
-            for (const auto& [k, e] : r->m)
+            dirty = std::make_shared<MapType>();
+
+            for (const auto& [k, e] : *(r->m))
             {
-                if (!e->tryExpungeLocked())
+                // 如果tryExpungeLocked返回false，说明entry有有效值，需要保留在dirty
+                if (e->tryExpungeLocked())
                 {
-                    dirty[k] = e;
+                    continue;
                 }
+                // Entry有值，添加到dirty
+                (*dirty)[k] = e;
             }
         }
     };

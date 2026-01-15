@@ -1,4 +1,5 @@
 #include "cppkit/log/log.hpp"
+#include <queue>
 
 namespace cppkit::log
 {

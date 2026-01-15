@@ -51,6 +51,7 @@ add_library(cppkit STATIC
         src/concurrency/semaphore.cpp
         src/http/server/http_request.cpp
         src/http/server/http_response.cpp
+        src/monitor.cpp
 )
 
 # Specify include directories for the target
