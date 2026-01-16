@@ -3,6 +3,7 @@
 #include "ae.hpp"
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -53,6 +54,7 @@ namespace cppkit::event
   };
 
   extern std::unordered_map<int, ConnInfo> connections_;
+  extern std::mutex connections_mutex_;
 
   class TcpServer
   {

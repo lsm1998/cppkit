@@ -160,8 +160,9 @@ namespace cppkit::websocket
                 }
 
                 // 尝试解析帧
-                if (const size_t parsedBytes = parseFrame(std::vector<uint8_t>(buffer.begin() + parsedOffset, buffer.end()),
-                                                          frame);
+                if (const size_t parsedBytes = parseFrame(
+                    std::span<const uint8_t>(buffer.data() + parsedOffset, buffer.size() - parsedOffset),
+                    frame);
                     parsedBytes > 0)
                 {
                     parsedOffset += parsedBytes;

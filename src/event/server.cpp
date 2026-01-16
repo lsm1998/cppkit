@@ -14,6 +14,7 @@
 namespace cppkit::event
 {
     std::unordered_map<int, ConnInfo> connections_;
+    std::mutex connections_mutex_;
 
     static int setNonBlock(const int fd)
     {
@@ -149,7 +150,7 @@ namespace cppkit::event
                                            snprintf(ipBuf, sizeof(ipBuf), "unknown");
                                        }
 
-                                       connections_[c] = ConnInfo(
+                                       ConnInfo connInfo(
                                            ipBuf,
                                            port,
                                            c,
@@ -158,19 +159,35 @@ namespace cppkit::event
                                                this->cleanup(n, cfd);
                                            });
 
+                                       {
+                                           std::lock_guard<std::mutex> lock(connections_mutex_);
+                                           connections_[c] = connInfo;
+                                       }
+
                                        if (onConn_)
                                        {
-                                           onConn_(connections_[c]);
+                                           onConn_(connInfo);
                                        }
                                        // create read handler for client
                                        loop_->createFileEvent(c,
                                                               AE_READABLE,
                                                               [this](const int cfd, int)
                                                               {
+                                                                  ConnInfo connInfo;
+                                                                  {
+                                                                      std::lock_guard<std::mutex> lock(connections_mutex_);
+                                                                      auto it = connections_.find(cfd);
+                                                                      if (it == connections_.end())
+                                                                      {
+                                                                          return; // 连接已关闭
+                                                                      }
+                                                                      connInfo = it->second;
+                                                                  }
+
                                                                   ssize_t n;
                                                                   if (onReadable_)
                                                                   {
-                                                                      n = onReadable_(connections_[cfd]);
+                                                                      n = onReadable_(connInfo);
                                                                       if (n < 0)
                                                                       {
                                                                           cleanup(n, cfd);
@@ -182,7 +199,7 @@ namespace cppkit::event
                                                                   {
                                                                       if (onMsg_)
                                                                       {
-                                                                          onMsg_(connections_[cfd],
+                                                                          onMsg_(connInfo,
                                                                               std::vector<uint8_t>(buf, buf + n));
                                                                       }
                                                                   }
@@ -217,11 +234,25 @@ namespace cppkit::event
         // 清理事件并关闭连接
         loop_->deleteFileEvent(cfd, AE_READABLE | AE_WRITABLE);
         close(cfd);
-        if (onClose_)
+
+        // 先拷贝 ConnInfo，然后从 map 中删除，最后在锁外调用回调
+        ConnInfo connInfo;
+        bool found = false;
         {
-            onClose_(connections_[cfd]);
+            std::lock_guard<std::mutex> lock(connections_mutex_);
+            auto it = connections_.find(cfd);
+            if (it != connections_.end())
+            {
+                connInfo = it->second;
+                connections_.erase(it);
+                found = true;
+            }
         }
-        connections_.erase(cfd);
+
+        if (found && onClose_)
+        {
+            onClose_(connInfo);
+        }
     }
 
     std::string ConnInfo::getIp() const
