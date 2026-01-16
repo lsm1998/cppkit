@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <queue>
 #include <unordered_set>
+#include <memory>
 #include <ranges>
 
 namespace cppkit::event
@@ -60,6 +61,6 @@ namespace cppkit::event
 
   private:
     struct Impl;
-    Impl* impl_;
+    std::unique_ptr<Impl> impl_;
   };
 } // namespace cppkit::event

@@ -155,10 +155,10 @@ namespace cppkit::http::server
                 }
             }
 
-            // 读取 Body（如果需要）
+            // 读取 Body
             if (headerParsed)
             {
-                const size_t receivedSize = useTemporaryFile ?
+                size_t receivedSize = useTemporaryFile ?
                     (tempFileFd >= 0 ? lseek(tempFileFd, 0, SEEK_CUR) : 0) : bodyBuffer.size();
 
                 while (receivedSize < contentLength)
@@ -189,6 +189,7 @@ namespace cppkit::http::server
                     {
                         bodyBuffer.insert(bodyBuffer.end(), buffer, buffer + len);
                     }
+                    receivedSize += len;
                 }
 
                 // Body 读取完成

@@ -54,7 +54,7 @@ namespace cppkit::event
     return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
   }
 
-  EventLoop::EventLoop() : impl_(new Impl())
+  EventLoop::EventLoop() : impl_(std::make_unique<Impl>())
   {
 #ifdef AE_USE_EPOLL
     impl_->epfd = epoll_create1(0);
@@ -76,7 +76,6 @@ namespace cppkit::event
     if (impl_->kq >= 0)
       close(impl_->kq);
 #endif
-    delete impl_;
   }
 
   bool EventLoop::createFileEvent(int fd, const int mask, const FileEventCallback& cb)
