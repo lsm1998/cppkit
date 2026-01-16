@@ -3,6 +3,7 @@
 #include "cppkit/define.hpp"
 #include "cppkit/random.hpp"
 #include <vector>
+#include <span>
 #include <random>
 #include <cstring>
 #include <stdexcept>
@@ -122,7 +123,7 @@ namespace cppkit::websocket
     return frame;
   }
 
-  inline size_t parseFrame(const std::vector<uint8_t>& data, Frame& frame)
+  inline size_t parseFrame(std::span<const uint8_t> data, Frame& frame)
   {
     // 最大允许的 payload 大小 (16 MB)
     constexpr uint64_t MAX_PAYLOAD_SIZE = 16 * 1024 * 1024;
