@@ -18,6 +18,14 @@ namespace cppkit::event
 {
   struct EventLoop::Impl
   {
+    struct TimeEventCompare
+    {
+      bool operator()(const TimeEvent& a, const TimeEvent& b) const
+      {
+        return a.when_ms > b.when_ms;
+      }
+    };
+
     Impl() : stopFlag(false), timeId(0)
     {
     }
@@ -26,8 +34,9 @@ namespace cppkit::event
 
     std::unordered_map<int, FileEvent> fevents;
 
-    // time events stored sorted by when_ms
-    std::vector<TimeEvent> tevents;
+    // time events stored in priority queue (min heap)
+    std::priority_queue<TimeEvent, std::vector<TimeEvent>, TimeEventCompare> tevents;
+    std::unordered_set<int64_t> deletedTimeEvents; // 惰性删除集合
     int64_t timeId;
 
 #ifdef AE_USE_EPOLL
@@ -45,7 +54,7 @@ namespace cppkit::event
     return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
   }
 
-  EventLoop::EventLoop() : impl_(new Impl())
+  EventLoop::EventLoop() : impl_(std::make_unique<Impl>())
   {
 #ifdef AE_USE_EPOLL
     impl_->epfd = epoll_create1(0);
@@ -67,7 +76,6 @@ namespace cppkit::event
     if (impl_->kq >= 0)
       close(impl_->kq);
 #endif
-    delete impl_;
   }
 
   bool EventLoop::createFileEvent(int fd, const int mask, const FileEventCallback& cb)
@@ -193,16 +201,14 @@ namespace cppkit::event
     te.id = id;
     te.when_ms = mstime() + after_ms;
     te.cb = std::move(cb);
-    impl_->tevents.push_back(te);
-    std::ranges::sort(impl_->tevents,
-        [](const TimeEvent& a, const TimeEvent& b) { return a.when_ms < b.when_ms; });
+    impl_->tevents.push(te); // O(log n) - 直接插入优先队列
     return id;
   }
 
   void EventLoop::deleteTimeEvent(int64_t id) const
   {
-    auto& vec = impl_->tevents;
-    vec.erase(std::ranges::remove_if(vec, [id](const TimeEvent& t) { return t.id == id; }).begin(), vec.end());
+    // 惰性删除：将id加入删除集合，实际处理时跳过
+    impl_->deletedTimeEvents.insert(id);
   }
 
   void EventLoop::run()
@@ -222,9 +228,18 @@ namespace cppkit::event
       // compute poll timeout from next time event
       int timeout = -1; // -1 means block
       int64_t now = mstime();
+
+      // 跳过已删除的事件，找到下一个有效事件
+      while (!impl_->tevents.empty() &&
+             impl_->deletedTimeEvents.count(impl_->tevents.top().id) > 0)
+      {
+        impl_->deletedTimeEvents.erase(impl_->tevents.top().id);
+        impl_->tevents.pop();
+      }
+
       if (!impl_->tevents.empty())
       {
-        if (const int64_t when = impl_->tevents.front().when_ms; when <= now)
+        if (const int64_t when = impl_->tevents.top().when_ms; when <= now)
           timeout = 0;
         else
         {
@@ -297,16 +312,23 @@ namespace cppkit::event
 #endif
       // process time events
       now = mstime();
-      while (!impl_->tevents.empty() && impl_->tevents.front().when_ms <= now)
+      while (!impl_->tevents.empty() && impl_->tevents.top().when_ms <= now)
       {
-        TimeEvent te = impl_->tevents.front();
-        impl_->tevents.erase(impl_->tevents.begin());
+        TimeEvent te = impl_->tevents.top();
+        impl_->tevents.pop();
+
+        // 跳过已删除的事件
+        if (impl_->deletedTimeEvents.count(te.id) > 0)
+        {
+          impl_->deletedTimeEvents.erase(te.id);
+          continue;
+        }
+
+        // 执行回调，如果返回值>0则重新调度
         if (const int64_t next = te.cb(te.id); next > 0)
         {
           te.when_ms = mstime() + next;
-          impl_->tevents.push_back(te);
-          std::ranges::sort(impl_->tevents,
-              [](const TimeEvent& a, const TimeEvent& b) { return a.when_ms < b.when_ms; });
+          impl_->tevents.push(te); // O(log n) - 重新插入优先队列
         }
       }
     }

@@ -9,6 +9,7 @@ namespace cppkit::http::server
     class HttpRequest
     {
         friend class HttpServer;
+        friend class HttpContext;
         HttpMethod method{};
         std::string path;
         mutable std::unordered_map<std::string, std::string> _params{};
@@ -19,6 +20,7 @@ namespace cppkit::http::server
         std::vector<u_int8_t> extraData{};
         mutable bool readBodyFlag{false};
         mutable std::vector<u_int8_t> _body{};
+        mutable std::string _tempFilePath;  // 临时文件路径（大文件上传）
 
     public:
         explicit HttpRequest(const int fd) : _fd(fd)
@@ -88,8 +90,23 @@ namespace cppkit::http::server
 
         void appendBody(const char* data, size_t len) const;
 
+        // 获取临时文件路径（大文件上传）
+        [[nodiscard]]
+        std::string getTempFilePath() const { return _tempFilePath; }
+
+        // 检查 body 是否在内存中
+        [[nodiscard]]
+        bool hasBodyInMemory() const { return readBodyFlag && _tempFilePath.empty(); }
+
+        // 检查是否使用临时文件
+        [[nodiscard]]
+        bool hasBodyInTempFile() const { return !_tempFilePath.empty(); }
+
     private:
         // 设置url param
         void setParams(std::unordered_map<std::string, std::string> params) const;
+
+        // 设置临时文件路径（内部使用）
+        void setTempFilePath(const std::string& path) const { _tempFilePath = path; }
     };
 } // namespace cppkit::http::server

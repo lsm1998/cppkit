@@ -45,16 +45,17 @@ namespace cppkit::http::server
 
             HttpContext& ctx = contexts[fd];
 
-            // 尝试解析
-            if (const ParseStatus status = ctx.parse(fd); status == ParseStatus::HeaderComplete)
+            // 尝试解析（包括 header 和 body）
+            const ParseStatus status = ctx.parse(fd);
+
+            if (status == ParseStatus::BodyComplete)
             {
+                // Body 完全接收，可以调用业务回调
                 HttpResponseWriter writer(fd);
 
                 handleRequest(*ctx.request, writer, fd);
 
                 // 根据Connection头决定是否关闭连接
-                // HTTP/1.1 默认保持连接，除非Connection: close
-                // HTTP/1.0 默认关闭连接，除非Connection: keep-alive
                 const std::string connectionHeader = ctx.request->getHeader("Connection");
                 const bool shouldClose = (connectionHeader.find("close") != std::string::npos) ||
                                         (connectionHeader.empty() && ctx.request->getHeader("keep-alive").empty());
@@ -64,15 +65,20 @@ namespace cppkit::http::server
                     contexts.erase(fd);
                     return -1; // 关闭连接
                 }
-                ctx = HttpContext();
+                // 重置，准备处理下一个请求
+                contexts.erase(fd);
+            }
+            else if (status == ParseStatus::Incomplete)
+            {
+                // 数据未完全到达，等待下次事件
+                return 0;
             }
             else if (status == ParseStatus::Error)
             {
-                // 关闭连接
+                // 解析错误，关闭连接
                 contexts.erase(fd);
-                return -1; // 关闭连接
+                return -1;
             }
-            // 等待更多数据
             return 0;
         });
         this->_server.start();

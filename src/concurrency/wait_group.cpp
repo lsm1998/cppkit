@@ -12,7 +12,7 @@ namespace cppkit::concurrency
   void WaitGroup::done()
   {
     const int prev = counter.fetch_sub(1, std::memory_order_acq_rel);
-    if (prev < 0)
+    if (prev <= 0)
       throw std::runtime_error("WaitGroup counter underflow");
 
     if (prev != 1)
