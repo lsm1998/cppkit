@@ -7,6 +7,8 @@
 #include <stdexcept>
 #include <cstring>
 #include <algorithm>
+#include <queue>
+#include <unordered_set>
 #include <ranges>
 
 namespace cppkit::event
